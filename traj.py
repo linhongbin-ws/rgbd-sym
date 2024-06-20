@@ -48,6 +48,7 @@ if __name__ == "__main__":
             mirror_T = sym_mirror(traj_Ts, originT, mirror_rot=mirror_rot,mirror_dis_scale=mirror_dis_scale)
             plotline(mirror_T, color=colors[j], legend_txt="scale {:.2f}".format(mirror_dis_scale) if is_first else None)
             is_first = False
-    plt.legend()
-
+    plt.legend(loc="best")
+    plt.savefig("./traj.pdf",bbox_inches='tight',dpi=400)
     plt.show()
+    
