@@ -1,2 +1,12 @@
 
-__pycache__/
+**.egg-info/
+**__pycache__
+log/
+
+.vscode/
+
+
+
+**.txt
+
+**build/

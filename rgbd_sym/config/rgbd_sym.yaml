@@ -1,0 +1,11 @@
+default:
+  seed: 0
+  wrapper:
+    pipeline: ['']
+  task_name: block_picking
+  embodied_name: PomdpEnv
+  embodied:
+    PomdpEnv:
+      pybullet_gui: False
+      block_picking:
+        something: True
