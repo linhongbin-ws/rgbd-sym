@@ -1,13 +1,13 @@
-from gym_ras.api import make_env
-from gym_ras.env.wrapper import Visualizer
-from gym_ras.tool.config import Config, load_yaml
+from rgbd_sym.api import make_env
+from rgbd_sym.env.wrapper import Visualizer
+from rgbd_sym.tool.config import Config, load_yaml
 import argparse
 from pathlib import Path
 from datetime import datetime
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--baseline', type=str, default="DreamerfD")
+parser.add_argument('--baseline', type=str, default="dreamerv2")
 parser.add_argument('--baseline-tag', type=str, nargs='+', default=[])
 parser.add_argument('--env-tag', type=str, nargs='+', default=[])
 parser.add_argument('--seed', type=int, default=0)
@@ -33,7 +33,7 @@ if args.online_eval:
 if args.reload_dir=="":
     env, env_config = make_env(tags=args.env_tag, seed=args.seed)
     method_config_dir =  Path(".") 
-    method_config_dir = method_config_dir / 'gym_ras' / 'config' / str(args.baseline + ".yaml")
+    method_config_dir = method_config_dir / 'rgbd_sym' / 'config' / str(args.baseline + ".yaml")
     if not method_config_dir.is_file():
         raise NotImplementedError("baseline not implement")
     yaml_dict = load_yaml(method_config_dir)
@@ -86,24 +86,18 @@ else:
 if args.visualize and args.online_eval:
     env = Visualizer(env,update_hz=30, vis_tag=args.vis_tag, keyboard=True)
 
-img = env.render()
-print("start tracker....")
-tracker = Tracker(sam=False, xmem=True)
-tracker.load_template()
-tracker.update_template()
-env.unwrapped.client._cam_device._segment.model = tracker
 
 if baseline_config.baseline_name == "DreamerfD":
     if args.online_eval:
-        # from gym_ras.rl import train_DreamerfD
+        # from rgbd_sym.rl import train_DreamerfD
         # train_DreamerfD.train(env, config, is_pure_train=False, is_pure_datagen=False,)
         raise NotImplementedError
     else:
-        from gym_ras.rl import train_DreamerfD
+        from rgbd_sym.rl import train_DreamerfD
         train_DreamerfD.train(env, config, is_pure_train=False, is_pure_datagen=False)
 elif baseline_config.baseline_name == "dreamerv2":
     if args.online_eval:
-        from gym_ras.rl import eval_dreamerv2
+        from rgbd_sym.rl import eval_dreamerv2
         import csv
         env.to_eval()
         eval_stat = eval_dreamerv2.eval_agnt(env, baseline_config, eval_eps_num=args.online_eps, is_visualize=args.visualize,save_prefix=args.save_prefix)
@@ -111,12 +105,12 @@ elif baseline_config.baseline_name == "dreamerv2":
 
 
     else:
-        from gym_ras.rl import train_dreamerv2
+        from rgbd_sym.rl import train_dreamerv2
         train_dreamerv2.train(env, baseline_config, )
 
 elif baseline_config.baseline_name == "ppo":
     if args.online_eval:
-        from gym_ras.rl import train_ppo
+        from rgbd_sym.rl import train_ppo
         env.to_eval()
 
 
@@ -128,5 +122,5 @@ elif baseline_config.baseline_name == "ppo":
         # with open(str(_file), 'w') as yaml_file:
         #     yaml.dump(eval_stat, yaml_file, default_flow_style=False)
     else:
-        from gym_ras.rl import train_ppo
+        from rgbd_sym.rl import train_ppo
         train_ppo.train(env, baseline_config, is_reload=not (args.reload_dir==""))

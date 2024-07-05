@@ -142,18 +142,17 @@ def train(origin_env, config, success_id=5.0, max_eps_length=300):
     eval_driver.on_episode(lambda ep: per_episode(ep, mode='eval'))
     eval_driver.on_episode(eval_replay.add_episode)
 
-    init_eval_stat = {'success_eps': 0,
-                      'success_rate': 0, 'total_eps': 0, "score": []}
+    init_eval_stat = {'total_eps': 0,}
     eval_stat = init_eval_stat.copy()
 
     def eval_sucess_stat(ep):
         eval_stat['total_eps'] += 1
         # print(ep['fsm_state'][-1]==2.0)
-        if ep['fsm_state'][-1] == success_id:
-            eval_stat['success_eps'] += 1
-        eps_length = ep['fsm_state'].shape[0] - 1
-        score = (max_eps_length - eps_length) / max_eps_length
-        eval_stat['score'].append(score)
+        # if ep['fsm_state'][-1] == success_id:
+        #     eval_stat['success_eps'] += 1
+        # eps_length = ep['fsm_state'].shape[0] - 1
+        # score = (max_eps_length - eps_length) / max_eps_length
+        # eval_stat['score'].append(score)
         # print(f"sucess/progress/total: ({eval_stat['sucess_eps_count']}/ {eval_stat['eps_cnt']} ")
     eval_driver.on_episode(eval_sucess_stat)
 
@@ -219,12 +218,12 @@ def train(origin_env, config, success_id=5.0, max_eps_length=300):
         eval_driver.reset()
         eval_stat = init_eval_stat.copy()
         eval_driver(eval_policy, episodes=config.eval_eps)
-        eval_stat['success_rate'] = eval_stat['success_eps'] / \
-            eval_stat['total_eps']
-        eval_stat['score'] = np.mean(np.array(eval_stat['score']))
+        # eval_stat['success_rate'] = eval_stat['success_eps'] / \
+        #     eval_stat['total_eps']
+        # eval_stat['score'] = np.mean(np.array(eval_stat['score']))
         logger.add(eval_stat, prefix='eval')
         print("============================")
-        print(f"eval success rate: {eval_stat['success_rate']}")
+        # print(f"eval success rate: {eval_stat['success_rate']}")
 
         print('Start training.')
         origin_env.to_train()

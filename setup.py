@@ -4,11 +4,12 @@ setup(name='rgbd_sym',
       version='1.0',
     install_requires=[
         'matplotlib',
-        'numpy',
+        'numpy<=1.23',
         'ipykernel',
         'notebook',
         'scipy',
         'pandas',
         'opencv-python<4.10',
+        'gym<=0.24', 
         ], 
       packages=find_packages())

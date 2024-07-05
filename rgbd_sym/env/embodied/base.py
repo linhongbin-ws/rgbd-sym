@@ -28,6 +28,11 @@ class BaseEnv(ABC):
     def get_oracle_action(self, obs):
         return self.client.get_oracle_action(obs)
 
+    def to_train(self):
+        pass
+    def to_eval(self):
+        pass
+
     def _init_vars(self):
         self.timestep = 0
         
