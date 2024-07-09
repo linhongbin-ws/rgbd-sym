@@ -14,9 +14,11 @@ default:
   steps: 1e8
   log_every: 1e4
   eval_every: 1e5
+  report_start_pred_steps: 6
   video_every: 1e5
   eval_eps: 1
   prefill: { random: 9e3, oracle: 1e3 }
+  prefill_eps: False
   pretrain: 1
   train_every: 5
   train_steps: 1
@@ -225,29 +227,17 @@ gas:
   steps: 1820000
 
 pomdp:
-  # eval_every: 2e4
-  # encoder: { mlp_keys: "$^", cnn_keys: "image" }
-  # decoder: { mlp_keys: "$^", cnn_keys: "image" }
-  # eval_eps: 1
-  # # prefill: {random: 9e3, oracle: 1e3}
-  # replay.capacity: 5e5 # limit ram usage
-  # log_keys_video: ["image"]
-  # video_every: 2e4
-  # # high_oracle:
-  # prefill: { random: 7e3, oracle: 3e3 }
-  # steps: 1820000
-
   encoder: { mlp_keys: "$^", cnn_keys: "image" }
   decoder: { mlp_keys: "$^", cnn_keys: "image" }
   eval_every: 1e4
-  prefill: {random: 1e3, oracle: 0e0}
+  prefill: {random: 20, oracle: 80}
+  prefill_eps: True
   pretrain: 100
-  clip_rewards: identity
   rssm: { hidden: 200, deter: 200 }
-  model_opt.lr: 3e-4
-  actor_opt.lr: 8e-5
-  critic_opt.lr: 8e-5
-  actor_ent: 1e-4
+  # actor_ent: 1e-4
+  replay: { minlen: 5, maxlen: 5 }
+  dataset: { batch: 100, length: 5 }
+  report_start_pred_steps: 3
 
 mlp:
   encoder: { mlp_keys: "vector", cnn_keys: "image" }

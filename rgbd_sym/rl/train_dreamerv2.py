@@ -157,24 +157,39 @@ def train(origin_env, config, success_id=5.0, max_eps_length=300):
     eval_driver.on_episode(eval_sucess_stat)
 
     prefill_config = config.prefill.flat
-    prefill_total = sum([v for k, v in prefill_config.items()])
-    prefill_total = max(0, prefill_total - train_replay.stats['total_steps'])
-    if prefill_total:
-        print(f'Prefill dataset ({prefill_total} steps).')
-        prefill_remain = prefill_total
-        for k, v in prefill_config.items():
-            if k == "random":
-                prefill_agent = common.RandomAgent(act_space)
-            elif k == "oracle":
-                prefill_agent = common.OracleAgent(act_space, env=env)
-            else:
-                raise NotImplementedError
-            to_prefill = min(prefill_remain, v)
-            if to_prefill <= 0:
-                break
-            train_driver(prefill_agent, steps=to_prefill, episodes=1)
-            train_driver.reset()
-            prefill_remain -= to_prefill
+    if config.prefill_eps:
+        if train_replay.stats['total_steps'] <=0:
+            prefill_total = sum([v for k, v in prefill_config.items()])
+            print(f'Prefill dataset ({prefill_total} episodes).')
+            for k, v in prefill_config.items():
+                if k == "random":
+                    prefill_agent = common.RandomAgent(act_space)
+                elif k == "oracle":
+                    prefill_agent = common.OracleAgent(act_space, env=env)
+                else:
+                    raise NotImplementedError
+                train_driver(prefill_agent, episodes=v)
+                train_driver.reset()
+
+    else:
+        prefill_total = sum([v for k, v in prefill_config.items()])
+        prefill_total = max(0, prefill_total - train_replay.stats['total_steps'])
+        if prefill_total:
+            print(f'Prefill dataset ({prefill_total} steps).')
+            prefill_remain = prefill_total
+            for k, v in prefill_config.items():
+                if k == "random":
+                    prefill_agent = common.RandomAgent(act_space)
+                elif k == "oracle":
+                    prefill_agent = common.OracleAgent(act_space, env=env)
+                else:
+                    raise NotImplementedError
+                to_prefill = min(prefill_remain, v)
+                if to_prefill <= 0:
+                    break
+                train_driver(prefill_agent, steps=to_prefill, episodes=1)
+                train_driver.reset()
+                prefill_remain -= to_prefill
 
     prefill_agent = common.RandomAgent(act_space)
     eval_driver(prefill_agent, episodes=1)

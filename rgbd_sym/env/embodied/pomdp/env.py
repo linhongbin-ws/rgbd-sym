@@ -33,7 +33,7 @@ class PomdpEnv(BaseEnv):
     def render(self, mode="human"):  # ['human', 'rgb_array', 'mask_array']
         return self.client.render(mode=mode)
 
-    def get_oracle_action(self, obs):
+    def get_oracle_action(self, obs=None):
         return self.client.query_expert(0)
     
     def _process_obs(self, obs):

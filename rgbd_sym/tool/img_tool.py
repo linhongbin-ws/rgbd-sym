@@ -125,8 +125,8 @@ class CV2_Visualizer():
             cnt = 0
             pic_length = int(gui_length / len(imgs_dict))
             pic_num = len(imgs_dict)
-            colum = np.int(np.ceil(np.sqrt(pic_num)))
-            total_num = np.int(colum*colum)
+            colum = int(np.ceil(np.sqrt(pic_num)))
+            total_num = int(colum*colum)
             for j in range((total_num-pic_num) % colum):
                 imgs_dict[j] = np.zeros((4, 4, 3), dtype=np.uint8)
             img_list = list(imgs_dict.items())
@@ -162,7 +162,7 @@ class CV2_Visualizer():
             cv2.imshow(title,
                        cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
-            _t = 0 if self._update_hz < 0 else np.int32(
+            _t = 0 if self._update_hz < 0 else int32(
                 (1/self._update_hz)*1000)
 
             is_quit = False
