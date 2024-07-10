@@ -11,6 +11,9 @@ git submodule update --init --recursive
 ## 2.2. Conda Install
 
 - We use virtual environment in [Anancoda](https://www.anaconda.com/download) to install our codes. Make sure you install anaconda.
+```sh
+wget https://repo.anaconda.com/archive/Anaconda3-2024.06-1-Linux-x86_64.sh
+```
 
 - Edit environment variables, go to [config.sh](./config.sh) and edit your environment variables.
 
