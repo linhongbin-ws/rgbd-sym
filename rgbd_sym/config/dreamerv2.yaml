@@ -250,6 +250,9 @@ pomdp2:
 pomdp3:
   rssm: { hidden: 1024, deter: 1024 }
 
+pomdp4:
+  prefill: {random: 20, oracle: 8000}
+
 
 mlp:
   encoder: { mlp_keys: "vector", cnn_keys: "image" }
