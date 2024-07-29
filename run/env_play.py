@@ -1,5 +1,5 @@
 from rgbd_sym.api import make_env
-from rgbd_sym.env.wrapper import Visualizer, ActionOracle
+from rgbd_sym.env.wrapper import Visualizer, ActionOracle, SymAug
 import argparse
 from tqdm import tqdm
 import time
@@ -18,6 +18,7 @@ parser.add_argument('--seed', type=int, default=0)
 parser.add_argument('--vis-tag', type=str, nargs='+', default=[])
 parser.add_argument('--oracle', type=str, default='script')
 parser.add_argument('--no-vis', action="store_true")
+parser.add_argument('--sym', action="store_true")
 parser.add_argument('--eval', action="store_true")
 
 args = parser.parse_args()
@@ -25,9 +26,12 @@ args = parser.parse_args()
 env, env_config = make_env(tags=args.env_tag, seed=args.seed)
 if args.action == 'oracle':
     env = ActionOracle(env, device=args.oracle)
+if not args.sym:
+    env = SymAug(env)
 if not args.no_vis:
     env = Visualizer(env, update_hz=100 if args.action in [
                      'oracle'] else -1, vis_tag=args.vis_tag, keyboard=not args.action in ['oracle'])
+
 
 if args.eval:
     env.to_eval()
