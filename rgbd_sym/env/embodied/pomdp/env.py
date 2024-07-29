@@ -36,7 +36,8 @@ class PomdpEnv(BaseEnv):
     def get_oracle_action(self, obs=None):
         return self.client.query_expert(0)
     
-    def _process_obs(self, obs):
+    def _process_obs(self, _obs):
+        obs = _obs.copy()
         obs_t = np.transpose(obs, axes=[2,1,0])
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
         new_obs = {}
@@ -45,7 +46,7 @@ class PomdpEnv(BaseEnv):
     @property
     def observation_space(self):
         obs = {}
-        obs['image'] = gym.spaces.Box(0, 255, self._new_obs_shape["image"],
+        obs['image'] = gym.spaces.Box(0, 255, self._new_obs_shape["rgb"],
                                           dtype=np.uint8)
         obs['is_success'] = gym.spaces.Discrete(2)
 

@@ -162,7 +162,7 @@ class CV2_Visualizer():
             cv2.imshow(title,
                        cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
-            _t = 0 if self._update_hz < 0 else int32(
+            _t = 0 if self._update_hz < 0 else np.int32(
                 (1/self._update_hz)*1000)
 
             is_quit = False
