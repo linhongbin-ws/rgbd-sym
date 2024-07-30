@@ -46,7 +46,7 @@ class PomdpEnv(BaseEnv):
     @property
     def observation_space(self):
         obs = {}
-        obs['image'] = gym.spaces.Box(0, 255, self._new_obs_shape["rgb"],
+        obs['image'] = gym.spaces.Box(0, 255, self._new_obs_shape["image"],
                                           dtype=np.uint8)
         obs['is_success'] = gym.spaces.Discrete(2)
 

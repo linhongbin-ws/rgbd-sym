@@ -25,13 +25,14 @@ def get_image_transform(theta, trans, pivot=(0, 0)):
 
 def perturb(current_image, next_image, dxy,
             theta, trans, pivot,
-            set_theta_zero=False, set_trans_zero=False):
+            set_theta_zero=False, set_trans_zero=False, action_only=False):
     """Perturn an image for data augmentation"""
 
     # image_size = current_image.shape[-2:]
 
     # Compute random rigid transform.
     # theta, trans, pivot = get_random_transform_params(image_size)
+    
     if set_theta_zero:
         theta = 0.
     if set_trans_zero:
@@ -47,11 +48,13 @@ def perturb(current_image, next_image, dxy,
     else:
         rotated_dxy = None
     # Apply rigid transform to image and pixel labels.
-    current_image = affine_transform(current_image, np.linalg.inv(transform),
-                                     mode='nearest', order=1)
-    if next_image is not None:
-        next_image = affine_transform(next_image, np.linalg.inv(transform),
-                                      mode='nearest', order=1)
+    
+    if not action_only:
+        current_image = affine_transform(current_image, np.linalg.inv(transform),
+                                        mode='nearest', order=1)
+        if next_image is not None:
+            next_image = affine_transform(next_image, np.linalg.inv(transform),
+                                        mode='nearest', order=1)
 
     return current_image, next_image, rotated_dxy, transform_params
 

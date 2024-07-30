@@ -25,7 +25,8 @@ sys.path.append(str(pathlib.Path(__file__).parent))
 sys.path.append(str(pathlib.Path(__file__).parent.parent))
 
 
-def train(origin_env, config, success_id=5.0, max_eps_length=300):
+def train(origin_env, config, sym=True):
+    NumSymPair = origin_env.SymNum if sym else 1
     env = common.GymWrapper(origin_env)
     env = common.ResizeImage(env)
     if hasattr(env.act_space['action'], 'n'):
@@ -134,12 +135,15 @@ def train(origin_env, config, success_id=5.0, max_eps_length=300):
     act_space = env.act_space
     obs_space = env.obs_space
     train_driver = common.Driver([env])
-    train_driver.on_episode(lambda ep: per_episode(ep, mode='train'))
-    train_driver.on_step(lambda tran, worker: step.increment())
+    train_driver.on_episode(lambda ep: per_episode(ep, mode="train"))
+    def stepping(tran, worker):
+        if not env.IsSymEnv:
+            step.increment() 
+    train_driver.on_step(stepping)
     train_driver.on_step(train_replay.add_step)
     train_driver.on_reset(train_replay.add_step)
     eval_driver = common.Driver([env])
-    eval_driver.on_episode(lambda ep: per_episode(ep, mode='eval'))
+    eval_driver.on_episode(lambda ep: per_episode(ep, mode="eval"))
     eval_driver.on_episode(eval_replay.add_episode)
 
     init_eval_stat = {'total_eps': 0,}
@@ -168,12 +172,14 @@ def train(origin_env, config, success_id=5.0, max_eps_length=300):
                     prefill_agent = common.OracleAgent(act_space, env=env)
                 else:
                     raise NotImplementedError
-                train_driver(prefill_agent, episodes=v)
+                train_driver(prefill_agent, episodes=v * NumSymPair)
                 train_driver.reset()
 
     else:
         prefill_total = sum([v for k, v in prefill_config.items()])
-        prefill_total = max(0, prefill_total - train_replay.stats['total_steps'])
+        prefill_total = max(
+            0, prefill_total * NumSymPair - train_replay.stats["total_steps"]
+        )
         if prefill_total:
             print(f'Prefill dataset ({prefill_total} steps).')
             prefill_remain = prefill_total
@@ -184,7 +190,7 @@ def train(origin_env, config, success_id=5.0, max_eps_length=300):
                     prefill_agent = common.OracleAgent(act_space, env=env)
                 else:
                     raise NotImplementedError
-                to_prefill = min(prefill_remain, v)
+                to_prefill = min(prefill_remain, v * NumSymPair)
                 if to_prefill <= 0:
                     break
                 train_driver(prefill_agent, steps=to_prefill, episodes=1)
@@ -200,6 +206,8 @@ def train(origin_env, config, success_id=5.0, max_eps_length=300):
     report_dataset = iter(train_replay.dataset(**config.dataset))
     eval_dataset = iter(eval_replay.dataset(**config.dataset))
     agnt = agent.Agent(config, obs_space, act_space, step)
+    if sym:
+        agnt = common.SymAgent(agnt, act_space, env=env)
     train_agent = common.CarryOverState(agnt.train)
     train_agent(next(train_dataset))
     if (logdir / 'variables.pkl').exists():

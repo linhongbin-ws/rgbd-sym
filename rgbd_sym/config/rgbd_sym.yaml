@@ -1,7 +1,8 @@
 default:
   seed: 0
   wrapper:
-    pipeline: ['']
+    pipeline: ['SymAug']
+    SymAug: {sym_num: 4,}
   task_name: block_picking
   embodied_name: PomdpEnv
   embodied:
