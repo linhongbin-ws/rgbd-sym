@@ -238,6 +238,7 @@ pomdp:
   replay: { minlen: 5, maxlen: 5 }
   dataset: { batch: 100, length: 5 }
   report_start_pred_steps: 3
+  # replay.capacity: 1e5 # limit ram usage
 
 pomdp2:
   clip_rewards: identity
