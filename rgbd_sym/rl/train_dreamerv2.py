@@ -137,8 +137,9 @@ def train(origin_env, config, sym=True):
     train_driver = common.Driver([env])
     train_driver.on_episode(lambda ep: per_episode(ep, mode="train"))
     def stepping(tran, worker):
-        if not env.IsSymEnv:
-            step.increment() 
+        # if not env.IsSymEnv:
+        #     step.increment() 
+        step.increment()
     train_driver.on_step(stepping)
     train_driver.on_step(train_replay.add_step)
     train_driver.on_reset(train_replay.add_step)
