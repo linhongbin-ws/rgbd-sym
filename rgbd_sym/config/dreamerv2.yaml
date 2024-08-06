@@ -31,6 +31,7 @@ default:
       maxlen: 50,
       prioritize_ends: True,
       free_ram_capacity: -1,
+      sym: 0,
     }
   dataset: { batch: 16, length: 50 }
   log_keys_video: ["image"]
@@ -235,9 +236,10 @@ pomdp:
   pretrain: 100
   rssm: { hidden: 200, deter: 200 }
   # actor_ent: 1e-4
-  replay: { minlen: 5, maxlen: 5 }
+  replay: { minlen: 5, maxlen: 5 , sym: 4}
   dataset: { batch: 100, length: 5 }
   report_start_pred_steps: 3
+  train_steps: 5
 
 pomdp2:
   clip_rewards: identity

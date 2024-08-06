@@ -62,7 +62,9 @@ def train(origin_env, config, success_id=5.0, max_eps_length=300):
     eval_replay = common.Replay(logdir / 'eval_episodes', **dict(
         capacity=1e4,
         minlen=config.dataset.length,
-        maxlen=config.dataset.length))
+        maxlen=config.dataset.length,
+        sym=0,
+        ))
     step = common.Counter(train_replay.stats['total_steps'])
     outputs = [
         common.TerminalOutput(),
