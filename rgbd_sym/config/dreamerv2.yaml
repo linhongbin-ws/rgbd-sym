@@ -166,7 +166,6 @@ dmc_vision:
   clip_rewards: identity
   pred_discount: False
   replay.prioritize_ends: False
-  rssm: { hidden: 200, deter: 200 }
   model_opt.lr: 3e-4
   actor_opt.lr: 8e-5
   critic_opt.lr: 8e-5
@@ -230,16 +229,21 @@ gas:
 pomdp:
   encoder: { mlp_keys: "$^", cnn_keys: "image" }
   decoder: { mlp_keys: "$^", cnn_keys: "image" }
-  eval_every: 1e4
+  eval_every: 2e3
   prefill: {random: 20, oracle: 80}
   prefill_eps: True
   pretrain: 100
-  rssm: { hidden: 200, deter: 200 }
   # actor_ent: 1e-4
-  replay: { minlen: 5, maxlen: 5 , sym: 4}
-  dataset: { batch: 100, length: 5 }
+  replay: { minlen: 8, maxlen: 8 , sym: 4}
+  dataset: { batch: 70, length: 8 }
   report_start_pred_steps: 3
-  train_steps: 5
+  train_steps: 1
+  
+high_pretrain:
+  pretrain: 5e4
+high_oracle4:
+  prefill.oracle: 500
+
 
 pomdp2:
   clip_rewards: identity

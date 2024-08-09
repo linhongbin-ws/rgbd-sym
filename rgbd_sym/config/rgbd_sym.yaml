@@ -1,7 +1,8 @@
 default:
   seed: 0
   wrapper:
-    pipeline: ['']
+    pipeline: ['VirtualClutch']
+    VirtualClutch: { start: 6 }
   task_name: block_picking
   embodied_name: PomdpEnv
   embodied:

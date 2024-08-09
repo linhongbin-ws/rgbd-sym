@@ -2,6 +2,8 @@ from pdomains import *
 from rgbd_sym.env.embodied.base import BaseEnv
 import gym
 import numpy as np
+from pomdp_envs import pomdp
+
 
 class PomdpEnv(BaseEnv):
     def __init__(self,
@@ -9,25 +11,34 @@ class PomdpEnv(BaseEnv):
                 pybullet_gui=False,
                   **kwargs,):
         if task== 'block_picking':
-            task_id = 'pdomains-block-picking-pixel-v0'
+            task_id = "BlockPicking-Symm-v0"
         client=gym.make(task_id, rendering=pybullet_gui)
         super().__init__(client)
         obs = self.client.reset()
         obs = self._process_obs(obs)
         self._new_obs_shape = {k: v.shape for k, v in obs.items()}
+        self.reset()
 
     def reset(self):
         self.timestep = 0
         obs = self.client.reset()
         obs = self._process_obs(obs)
         obs['is_success'] = 0
+        self._prv_obs = obs
         return obs
-    
-    def step(self, action):
+
+    def step(self, action, skip=False):
         self.timestep += 1
-        obs, reward, done, info = self.client.step(action)
-        obs = self._process_obs(obs)
-        obs['is_success'] = 1 if info['success'] else 0
+        if skip:
+            obs = self._prv_obs
+            reward = 0
+            done = False
+            info = {}
+            info["success"] = False
+        else:
+            obs, reward, done, info = self.client.step(action)
+            obs = self._process_obs(obs)
+            obs['is_success'] = 1 if info['success'] else 0
         return obs, reward, done, info
 
     def render(self, mode="human"):  # ['human', 'rgb_array', 'mask_array']
@@ -35,13 +46,13 @@ class PomdpEnv(BaseEnv):
 
     def get_oracle_action(self, obs=None):
         return self.client.query_expert(0)
-    
+
     def _process_obs(self, _obs):
         obs = _obs.copy()
         obs_t = np.transpose(obs, axes=[2,1,0])
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
         new_obs = {}
-        new_obs['image'] = obs_t
+        new_obs['image'] = np.uint8(obs_t*255) #
         return new_obs
     @property
     def observation_space(self):
@@ -50,9 +61,7 @@ class PomdpEnv(BaseEnv):
                                           dtype=np.uint8)
         obs['is_success'] = gym.spaces.Discrete(2)
 
-        
         return gym.spaces.Dict(obs)
-
 
 
 if __name__ == "__main__":
