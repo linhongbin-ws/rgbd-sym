@@ -238,6 +238,8 @@ pomdp:
   dataset: { batch: 70, length: 8 }
   report_start_pred_steps: 3
   train_steps: 1
+no_sym:
+  replay: { minlen: 8, maxlen: 8 , sym: 0}
   
 high_pretrain:
   pretrain: 5e4
