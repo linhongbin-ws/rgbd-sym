@@ -2,6 +2,7 @@ from rgbd_sym.api import make_env
 from rgbd_sym.env.wrapper import Visualizer, ActionOracle
 import argparse
 from tqdm import tqdm
+import numpy as np
 import time
 parser = argparse.ArgumentParser(
     prog='ProgramName',
@@ -31,6 +32,7 @@ if not args.no_vis:
 
 if args.eval:
     env.to_eval()
+print("action space:" , env.action_space)
 for _ in tqdm(range(args.repeat)):
     done = False
     obs = env.reset()
@@ -44,7 +46,8 @@ for _ in tqdm(range(args.repeat)):
         # print(action)
         print("==========step", env.timestep, "===================")
         if any(i.isdigit() for i in args.action):
-            action = int(args.action)
+            action = np.array([0.0,0,0,0,0])
+            action[int(args.action)] = 1
         elif args.action == "random":
             action = env.action_space.sample()
         elif args.action == "oracle":
@@ -57,7 +60,7 @@ for _ in tqdm(range(args.repeat)):
         print_obs = {k: v.shape if k in [
             "image", "rgb", "depth"] else v for k, v in print_obs.items()}
         print_obs = [str(k) + ":" + str(v) for k, v in print_obs.items()]
-        print(" | ".join(print_obs))
+        # print(" | ".join(print_obs))
         print("reward:", reward, "done:", done,)
         print("info:", info)
 

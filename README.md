@@ -31,6 +31,7 @@ wget https://repo.anaconda.com/archive/Anaconda3-2024.06-1-Linux-x86_64.sh
     pushd ext/equi-rl-for-pomdps && python -m pip install -r requirements.txt && popd
     pushd ext/equi-rl-for-pomdps/pomdp_robot_domains/ && python -m pip install -r requirements.txt && python -m pip install -e . && popd
     pushd ext/equi-rl-for-pomdps/pomdp-domains/ &&  python -m pip install -e . && popd
+    pushd ext/equi-rl-for-pomdps &&  python -m pip install -e . && popd
     pushd ext/dreamerv2/ && python -m pip install -e . && popd # install dreamerv2
     python -m pip install -e . 
     ```

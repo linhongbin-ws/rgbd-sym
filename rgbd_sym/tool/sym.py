@@ -59,25 +59,49 @@ def perturb(
         theta = 0.0
     if set_trans_zero:
         trans = [0.0, 0.0]
-    transform = get_image_transform(theta, trans, pivot)
+    # transform = get_image_transform(theta, trans, pivot)
+
     transform_params = theta, trans, pivot
 
     rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
     if dxy is not None:
-        rotated_dxy = rot.dot(dxy)
+        rotated_dxy = rot.T.dot(dxy) # transpose, fix bug of action roation
         rotated_dxy = np.clip(rotated_dxy, -1, 1)
     else:
         rotated_dxy = None
     # Apply rigid transform to image and pixel labels.
-
+    p = np.array(pivot)
+    print(pivot)
+    offset = p - p.dot(rot)
+    s = current_image.shape
     if not action_only:
-        current_image = affine_transform(
-            current_image, np.linalg.inv(transform), mode="nearest", order=1
-        )
+        image_list = []
+        for i in range(s[2]):
+            image_list.append(affine_transform(
+                current_image[:,:,i],
+                rot.T,
+                mode="nearest",
+                offset=offset,
+                order=1,
+                output_shape=(s[0], s[1]),
+                output=np.uint8,
+            ))
+        current_image = np.stack(image_list, axis=2)
         if next_image is not None:
-            next_image = affine_transform(
-                next_image, np.linalg.inv(transform), mode="nearest", order=1
-            )
+            image_list = []
+            for i in range(s[2]):
+                image_list.append(
+                    affine_transform(
+                        next_image[:, :, i],
+                        rot.T,
+                        mode="nearest",
+                        offset=offset,
+                        order=1,
+                        output_shape=(s[0], s[1]),
+                        output=np.uint8,
+                    )
+                )
+            next_image = np.stack(image_list, axis=2)
     new_action = action.copy()
     new_action[1:3] = rotated_dxy
     return current_image, next_image, new_action, transform_params

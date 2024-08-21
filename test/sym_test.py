@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from rgbd_sym.tool.sym import get_random_transform_params, perturb
 import cv2
+from matplotlib.pyplot import imshow, subplot, axis, cm, show
 
 parser = argparse.ArgumentParser(
     prog="ProgramName",
@@ -53,7 +54,7 @@ while not done:
 
     for k in range(args.sym):
         path = Path(args.savedir) / str(eps) / ("sym" + str(k+1))
-        theta, trans, pivot = get_random_transform_params(obs['image'][0].shape)
+        theta, trans, pivot = get_random_transform_params(obs['image'].shape)
         obs_new, _, action_new, _ = perturb(
             obs["image"],
             None,
@@ -69,3 +70,10 @@ while not done:
         cv2.imwrite(
             str(path / (str(step) + ".jpg")), cv2.cvtColor(obs_new, cv2.COLOR_RGB2BGR)
         )
+    #     subplot(1, args.sym, k + 1)
+    #     axis("off")
+    #     if k == 0:
+    #         imshow(obs["image"])
+    #     else:
+    #         imshow(obs_new)
+    # show()
