@@ -11,4 +11,4 @@ code
 - [ ] find sota baselines for RL
 exp
 - [x] test the correctness of sym-augmented action, by stepping simulation
-- [ ] run dreamerv2 with sym buffer
+- [ ] run dreamerv2 with sym buffer, (no return improvement)

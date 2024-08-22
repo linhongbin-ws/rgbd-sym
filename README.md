@@ -36,3 +36,13 @@ wget https://repo.anaconda.com/archive/Anaconda3-2024.06-1-Linux-x86_64.sh
     python -m pip install -e . 
     ```
     > Our GPU Dependency in Anaconda: cudatoolkit=11.3, cudnn=8.2,tensorflow=2.9.0 tensorflow_probability=0.17.0. Other versions should work, while user need to check the compatability of cuda and tensorflow.  
+- Install dreamerv3
+    ```sh
+    source ./config/config_dreamerv3.sh
+    source $ANACONDA_PATH/bin/activate 
+    source bash/init_dreamerv3.sh
+    conda create -n $ENV_NAME python=3.9 -y
+    conda install nvidia/label/cuda-12.3.2::cuda -y
+    conda install -c anaconda cudnn=9 -y
+    pip install -U "jax[cuda12]"
+    ```

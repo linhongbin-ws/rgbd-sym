@@ -71,7 +71,7 @@ def perturb(
         rotated_dxy = None
     # Apply rigid transform to image and pixel labels.
     p = np.array(pivot)
-    print(pivot)
+    # print(pivot)
     offset = p - p.dot(rot)
     s = current_image.shape
     if not action_only:
