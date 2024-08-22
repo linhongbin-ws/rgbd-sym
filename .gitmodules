@@ -4,3 +4,6 @@
 [submodule "ext/equi-rl-for-pomdps"]
 	path = ext/equi-rl-for-pomdps
 	url = https://github.com/linhongbin-ws/equi-rl-for-pomdps.git
+[submodule "ext/dreamerv3"]
+	path = ext/dreamerv3
+	url = https://github.com/danijar/dreamerv3.git
