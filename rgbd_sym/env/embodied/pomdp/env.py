@@ -23,7 +23,7 @@ class PomdpEnv(BaseEnv):
         self.timestep = 0
         obs = self.client.reset()
         obs = self._process_obs(obs)
-        obs['is_success'] = 0
+        # obs['is_success'] = 0
         self._prv_obs = obs
         return obs
 
@@ -38,7 +38,7 @@ class PomdpEnv(BaseEnv):
         else:
             obs, reward, done, info = self.client.step(action)
             obs = self._process_obs(obs)
-            obs['is_success'] = 1 if info['success'] else 0
+            # obs['is_success'] = 1 if info['success'] else 0
         return obs, reward, done, info
 
     def render(self, mode="human"):  # ['human', 'rgb_array', 'mask_array']
@@ -59,7 +59,7 @@ class PomdpEnv(BaseEnv):
         obs = {}
         obs['image'] = gym.spaces.Box(0, 255, self._new_obs_shape["image"],
                                           dtype=np.uint8)
-        obs['is_success'] = gym.spaces.Discrete(2)
+        # obs['is_success'] = gym.spaces.Discrete(2)
 
         return gym.spaces.Dict(obs)
 

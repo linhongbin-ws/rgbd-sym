@@ -40,8 +40,8 @@ wget https://repo.anaconda.com/archive/Anaconda3-2024.06-1-Linux-x86_64.sh
     ```sh
     source ./config/config_dreamerv3.sh
     source $ANACONDA_PATH/bin/activate 
+    conda create -n $ENV_NAME python=3.10 -y
     source bash/init_dreamerv3.sh
-    conda create -n $ENV_NAME python=3.9 -y
     conda install nvidia/label/cuda-12.3.2::cuda -y
     conda install -c anaconda cudnn=9 -y
     pip install -U "jax[cuda12]"
