@@ -15,11 +15,12 @@ import embodied
 import numpy as np
 
 def main():
-  prefill_oracle = 0
   config = embodied.Config(dreamerv3.Agent.configs['defaults'])
+  dir = "logdir/20240910T172334-example"
   config = config.update({
       **dreamerv3.Agent.configs['size100m'],
-      'logdir': f'./logdir/{embodied.timestamp()}-example',
+      'logdir': dir,
+      # 'logdir': f'./logdir/{embodied.timestamp()}-example',
       'run.train_ratio': 32,
       'enc.spaces': 'image',
       'dec.spaces': 'image',
@@ -27,14 +28,11 @@ def main():
       # 'run.num_envs': 1,
       # 'run.num_envs_eval': 1,
       'run.driver_parallel': True,
-      'run.log_every': 1e4,
+      'run.from_checkpoint': dir +'/checkpoint.ckpt'
   })
-  if prefill_oracle > 0:
-    config = config.update({
-        'run.num_envs': 1,
-        'run.num_envs_eval': 1,
-        'run.driver_parallel': False,
-    })
+  config = config.update({
+      **dreamerv3.Agent.configs['debug'],
+  })
 
   config = embodied.Flags(config).parse()
 
@@ -88,13 +86,13 @@ def main():
       bind(make_agent, config),
       bind(make_replay, config),
       bind(make_env, config),
-      bind(make_logger, config), args, prefill_oracle)
+      bind(make_logger, config), args)
 
 
 
 
 
-def train(make_agent, make_replay, make_env, make_logger, args, prefill_oracle):
+def train(make_agent, make_replay, make_env, make_logger, args):
 
   agent = make_agent()
   replay = make_replay()
@@ -159,11 +157,6 @@ def train(make_agent, make_replay, make_env, make_logger, args, prefill_oracle):
   driver.on_step(replay.add)
   driver.on_step(log_step)
 
-  if prefill_oracle > 0:
-    oracle_agent = OracleAgent(driver.envs[0].obs_space, driver.envs[0].act_space, driver.origin) 
-    driver.reset(oracle_agent.init_policy)
-    driver(oracle_agent.policy, episodes=prefill_oracle)
-
   dataset_train = iter(agent.dataset(bind(
       replay.dataset, args.batch_size, args.batch_length)))
   dataset_report = iter(agent.dataset(bind(
@@ -188,10 +181,17 @@ def train(make_agent, make_replay, make_env, make_logger, args, prefill_oracle):
   checkpoint.step = step
   checkpoint.agent = agent
   checkpoint.replay = replay
+
+  stats = checkpoint.replay.stats()
+  for k,v in stats.items():
+    print(k,":",v)
   if args.from_checkpoint:
     checkpoint.load(args.from_checkpoint)
   checkpoint.load_or_save()
   should_save(step)  # Register that we just saved.
+  stats = checkpoint.replay.stats()
+  for k,v in stats.items():
+    print(k,":",v)
 
   print('Start training loop')
   policy = lambda *args: agent.policy(
@@ -221,51 +221,6 @@ def train(make_agent, make_replay, make_env, make_logger, args, prefill_oracle):
   logger.close()
 
 
-
-class OracleAgent:
-
-  def __init__(self, obs_space, act_space, original_env):
-    self.obs_space = obs_space
-    self.act_space = act_space
-    self._original_env = original_env
-
-  def init_policy(self, batch_size):
-    return ()
-
-  def init_train(self, batch_size):
-    return ()
-
-  def init_report(self, batch_size):
-    return ()
-
-
-  def policy(self, obs, carry=(), mode='train'):
-    batch_size = len(obs['is_first'])
-    assert batch_size == 1
-
-    act = {
-        k: np.stack([self._original_env[i].get_oracle_action().astype(np.float32) for i in range(batch_size)])
-        for k, v in self.act_space.items() if k != 'reset'}
-    outs = {}
-    return act, outs, carry
-
-  def train(self, data, carry=()):
-    outs = {}
-    metrics = {}
-    return outs, carry, metrics
-
-  def report(self, data, carry=()):
-    report = {}
-    return report, carry
-
-  def dataset(self, generator):
-    return generator()
-
-  def save(self):
-    return None
-
-  def load(self, data=None):
-    pass
 
 
 if __name__ == '__main__':

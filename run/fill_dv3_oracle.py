@@ -15,7 +15,7 @@ import embodied
 import numpy as np
 
 def main():
-  prefill_oracle = 0
+  prefill_oracle = 80
   config = embodied.Config(dreamerv3.Agent.configs['defaults'])
   config = config.update({
       **dreamerv3.Agent.configs['size100m'],
@@ -27,13 +27,13 @@ def main():
       # 'run.num_envs': 1,
       # 'run.num_envs_eval': 1,
       'run.driver_parallel': True,
-      'run.log_every': 1e4,
   })
   if prefill_oracle > 0:
     config = config.update({
         'run.num_envs': 1,
         'run.num_envs_eval': 1,
         'run.driver_parallel': False,
+        'jax.platform': 'cpu',
     })
 
   config = embodied.Flags(config).parse()
@@ -45,7 +45,8 @@ def main():
 
   def make_agent(config):
     env = make_env(config)
-    agent = dreamerv3.Agent(env.obs_space, env.act_space, config)
+    dv3_agnt = dreamerv3.Agent(env.obs_space, env.act_space, config)
+    agent = RandomAgent(env.obs_space, env.act_space)
     env.close()
     return agent
 
@@ -88,15 +89,15 @@ def main():
       bind(make_agent, config),
       bind(make_replay, config),
       bind(make_env, config),
-      bind(make_logger, config), args, prefill_oracle)
+      bind(make_logger, config), args, prefill_oracle, config)
 
 
 
 
 
-def train(make_agent, make_replay, make_env, make_logger, args, prefill_oracle):
+def train(make_agent, make_replay, make_env, make_logger, args, prefill_oracle, config):
 
-  agent = make_agent()
+  # agent = make_agent()
   replay = make_replay()
   logger = make_logger()
 
@@ -159,68 +160,93 @@ def train(make_agent, make_replay, make_env, make_logger, args, prefill_oracle):
   driver.on_step(replay.add)
   driver.on_step(log_step)
 
+
   if prefill_oracle > 0:
-    oracle_agent = OracleAgent(driver.envs[0].obs_space, driver.envs[0].act_space, driver.origin) 
+    _env= driver.envs[0]
+    dv3_agnt = dreamerv3.Agent(_env.obs_space, _env.act_space, config)
+    oracle_agent = RandomAgent(driver.envs[0].obs_space, driver.envs[0].act_space, dv3_agnt) 
     driver.reset(oracle_agent.init_policy)
-    driver(oracle_agent.policy, episodes=prefill_oracle)
-
-  dataset_train = iter(agent.dataset(bind(
-      replay.dataset, args.batch_size, args.batch_length)))
-  dataset_report = iter(agent.dataset(bind(
-      replay.dataset, args.batch_size, args.batch_length_eval)))
-  carry = [agent.init_train(args.batch_size)]
-  carry_report = agent.init_report(args.batch_size)
-
-  def train_step(tran, worker):
-    if len(replay) < args.batch_size or step < args.train_fill:
-      return
-    for _ in range(should_train(step)):
-      with embodied.timer.section('dataset_next'):
-        batch = next(dataset_train)
-      outs, carry[0], mets = agent.train(batch, carry[0])
-      train_fps.step(batch_steps)
-      if 'replay' in outs:
-        replay.update(outs['replay'])
-      agg.add(mets, prefix='train')
-  driver.on_step(train_step)
+    for i in range(prefill_oracle):
+      driver(oracle_agent.policy, episodes=1)
+      print("eps / total: ", i+1, "/", prefill_oracle)
 
   checkpoint = embodied.Checkpoint(logdir / 'checkpoint.ckpt')
   checkpoint.step = step
-  checkpoint.agent = agent
+  checkpoint.agent = dv3_agnt
   checkpoint.replay = replay
-  if args.from_checkpoint:
-    checkpoint.load(args.from_checkpoint)
-  checkpoint.load_or_save()
-  should_save(step)  # Register that we just saved.
+  checkpoint.save()
 
-  print('Start training loop')
-  policy = lambda *args: agent.policy(
-      *args, mode='explore' if should_expl(step) else 'train')
-  driver.reset(agent.init_policy)
-  while step < args.steps:
+  # print('Start training loop')
+  # policy = lambda *args: agent.policy(
+  #     *args, mode='explore' if should_expl(step) else 'train')
+  # driver.reset(agent.init_policy)
+  # while step < args.steps:
 
-    driver(policy, steps=10)
+  #   driver(policy, steps=10)
 
-    if should_eval(step) and len(replay):
-      mets, _ = agent.report(next(dataset_report), carry_report)
-      logger.add(mets, prefix='report')
+  #   if should_eval(step) and len(replay):
+  #     mets, _ = agent.report(next(dataset_report), carry_report)
+  #     logger.add(mets, prefix='report')
 
-    if should_log(step):
-      logger.add(agg.result())
-      logger.add(epstats.result(), prefix='epstats')
-      logger.add(embodied.timer.stats(), prefix='timer')
-      logger.add(replay.stats(), prefix='replay')
-      logger.add(usage.stats(), prefix='usage')
-      logger.add({'fps/policy': policy_fps.result()})
-      logger.add({'fps/train': train_fps.result()})
-      logger.write()
+  #   if should_log(step):
+  #     logger.add(agg.result())
+  #     logger.add(epstats.result(), prefix='epstats')
+  #     logger.add(embodied.timer.stats(), prefix='timer')
+  #     logger.add(replay.stats(), prefix='replay')
+  #     logger.add(usage.stats(), prefix='usage')
+  #     logger.add({'fps/policy': policy_fps.result()})
+  #     logger.add({'fps/train': train_fps.result()})
+  #     logger.write()
 
-    if should_save(step):
-      checkpoint.save()
+  #   if should_save(step):
+  #     checkpoint.save()
 
   logger.close()
 
+class RandomAgent:
 
+  def __init__(self, obs_space, act_space, dv3_agnt):
+    self.obs_space = obs_space
+    self.act_space = act_space
+    self._dv3_agnt = dv3_agnt
+
+  def init_policy(self, batch_size):
+    return self._dv3_agnt.init_policy(batch_size)
+
+  def init_train(self, batch_size):
+    return ()
+
+  def init_report(self, batch_size):
+    return ()
+
+  def policy(self, obs, carry=(), mode='train'):
+    batch_size = len(obs['is_first'])
+    act = {
+        k: np.stack([v.sample() for _ in range(batch_size)])
+        for k, v in self.act_space.items() if k != 'reset'}
+    
+    outs = {}
+    outs['deter'] = carry[0]['deter']
+    outs['stoch'] = carry[0]['stoch']
+    return act, outs, carry
+
+  def train(self, data, carry=()):
+    outs = {}
+    metrics = {}
+    return outs, carry, metrics
+
+  def report(self, data, carry=()):
+    report = {}
+    return report, carry
+
+  def dataset(self, generator):
+    return generator()
+
+  def save(self):
+    return None
+
+  def load(self, data=None):
+    pass
 
 class OracleAgent:
 
@@ -246,7 +272,9 @@ class OracleAgent:
     act = {
         k: np.stack([self._original_env[i].get_oracle_action().astype(np.float32) for i in range(batch_size)])
         for k, v in self.act_space.items() if k != 'reset'}
+        
     outs = {}
+
     return act, outs, carry
 
   def train(self, data, carry=()):
