@@ -2,7 +2,7 @@
 ## 1.1. Download 
 
 ```sh
-git clone https://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@github.com/linhongbin-ws/rgbd-sym.git
+git clone https://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@github.com/linhongbin-ws/rgbd-sym.git -b devel
 cd rgbd-sym
 git submodule update --init --recursive
 ```
