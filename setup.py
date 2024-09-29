@@ -12,6 +12,7 @@ setup(name='rgbd_sym',
         'opencv-python<4.10',
         'gym<=0.24', 
         'ruamel.yaml<=0.17',
-        'pynput'
+        'pynput',
+        'pybullet==3.0.9',
         ], 
       packages=find_packages())

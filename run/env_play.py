@@ -64,8 +64,10 @@ for _ in tqdm(range(args.repeat)):
         print("reward:", reward, "done:", done,)
         print("info:", info)
 
-        print(obs)
-        img = {"image": obs["image"]}
+        # print(obs)
+        img = {"rgb": obs["image"]}
+        if 'mask' in info:
+            img["mask"] = info['mask']
 
         if not args.no_vis:
             img_break = env.cv_show(imgs=img)
