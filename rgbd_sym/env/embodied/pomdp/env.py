@@ -16,8 +16,8 @@ class PomdpEnv(BaseEnv):
         super().__init__(client)
         obs = self.client.reset()
         obs = self._process_obs(obs)
-        self._new_obs_shape = {k: v.shape for k, v in obs.items()}
-        self.reset()
+        print(obs.keys())
+        self._new_obs_shape = {k: v.shape for k, v in obs.items() if k not in ["mask"]}
 
     def reset(self):
         self.timestep = 0
@@ -48,12 +48,13 @@ class PomdpEnv(BaseEnv):
         return self.client.query_expert(0)
 
     def _process_obs(self, _obs):
-        obs = _obs.copy()
-        obs_t = np.transpose(obs, axes=[2,1,0])
+        new_obs = _obs.copy()
+        obs_t = np.transpose(_obs['depth'], axes=[2,1,0])
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
-        new_obs = {}
         new_obs['image'] = np.uint8(obs_t*255) #
+        new_obs.pop('depth', None)
         return new_obs
+    
     @property
     def observation_space(self):
         obs = {}

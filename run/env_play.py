@@ -37,7 +37,8 @@ for _ in tqdm(range(args.repeat)):
     done = False
     obs = env.reset()
     if not args.no_vis:
-        img = {"image": obs["image"]}
+        img = obs.copy()
+        img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
         img_break = env.cv_show(imgs=img)
         # img_break = env.cv_show(imgs=img)
     # print("obs:", obs)
@@ -62,12 +63,12 @@ for _ in tqdm(range(args.repeat)):
         print_obs = [str(k) + ":" + str(v) for k, v in print_obs.items()]
         # print(" | ".join(print_obs))
         print("reward:", reward, "done:", done,)
-        print("info:", info)
 
         # print(obs)
-        img = {"rgb": obs["image"]}
-        if 'mask' in info:
-            img["mask"] = info['mask']
+        img = obs.copy()
+        img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
+        
+        print(img.keys())
 
         if not args.no_vis:
             img_break = env.cv_show(imgs=img)
