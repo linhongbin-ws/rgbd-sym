@@ -16,7 +16,7 @@ class PomdpEnv(BaseEnv):
         super().__init__(client)
         obs = self.client.reset()
         obs = self._process_obs(obs)
-        print(obs.keys())
+        # print(obs.keys())
         self._new_obs_shape = {k: v.shape for k, v in obs.items() if k not in ["mask"]}
 
     def reset(self):
@@ -49,9 +49,10 @@ class PomdpEnv(BaseEnv):
 
     def _process_obs(self, _obs):
         new_obs = _obs.copy()
-        obs_t = np.transpose(_obs['depth'], axes=[2,1,0])
+        obs_t = np.transpose(_obs['image'], axes=[2,1,0])
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
         new_obs['image'] = np.uint8(obs_t*255) #
+        new_obs['depthReal'] =np.transpose(_obs['depth'][0,:,:], axes=[1,0])
         new_obs.pop('depth', None)
         return new_obs
     

@@ -38,7 +38,8 @@ for _ in tqdm(range(args.repeat)):
     obs = env.reset()
     if not args.no_vis:
         img = obs.copy()
-        img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
+        # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
+        img.pop("depthReal", None)
         img_break = env.cv_show(imgs=img)
         # img_break = env.cv_show(imgs=img)
     # print("obs:", obs)
@@ -66,8 +67,8 @@ for _ in tqdm(range(args.repeat)):
 
         # print(obs)
         img = obs.copy()
-        img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
-        
+        # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
+        img.pop("depthReal", None)
         print(img.keys())
 
         if not args.no_vis:
