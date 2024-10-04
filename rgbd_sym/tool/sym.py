@@ -1,9 +1,11 @@
 import numpy as np
 import cv2
-from rgbd_sym.tool.common import scale_arr, getT
+from rgbd_sym.tool.common import scale_arr, getT, TxT
 import numpy as np
 from scipy.ndimage import affine_transform
 
+# local sym dependency
+from rgbd_sym.tool.depth import get_intrinsic_matrix, depth_image_to_point_cloud, pointclouds2occupancy, occup2image
 
 def get_random_transform_params(image_size, trans_scale=1, rot_scale=1):
     theta = np.random.random() * 2 * np.pi
@@ -177,3 +179,90 @@ if __name__ == "__main__":
     for new_rgb in new_rgbs:
         cv2.imshow('image',new_rgb)
         cv2.waitKey(0)
+
+
+def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
+                           gripper_project_offset,
+                           transform_dict,
+                            pc_x_min,
+                            pc_x_max,
+                            pc_y_min,
+                            pc_y_max,
+                            pc_z_min,
+                            pc_z_max,
+                            occup_h,
+                            occup_w,
+                            occup_d,
+                            background_encoding=255
+                           ):
+    depth_real = scale_arr(depth, 0, 255, depth_real_min, depth_real_max) # depth image to depth
+    depth_real[mask_dict['gripper']] +=gripper_project_offset # gripper is depth zero, so we need to offset it in a camera view, otherwise the gripper shape is weird 
+    # print(depth_real[mask_dict['gripper']])
+    # print(depth_real[mask_dict['object1']])
+    encode_mask = np.zeros(depth.shape, dtype=np.uint8)
+    # masks = [mask_dict[k] for k in mask_dict]
+    # for i, v in enumerate(masks):
+    #     subplot(1, len(masks), i + 1)
+    #     axis("off")
+    #     imshow(v)
+    # show()
+    # mask_key = [k for k in mask_dict]
+    masks = []
+    encode_id = {}
+    m_id = 0
+    for k,v in mask_dict.items():
+        m_id+=1
+        masks.append(k)
+        encode = m_id + 1
+        encode_mask[v] =encode
+        encode_id[k] = encode
+    # for m_id, m in enumerate(masks):
+    #     encode_mask[m] = m_id + 1 # background 0, other mask key 1, 2, 3 ...
+    scale = 1
+    pose = np.eye(4)
+    rgb = np.zeros(depth.shape + (3,),dtype=np.uint8)
+    points = depth_image_to_point_cloud(
+        rgb, depth_real, scale, K, pose, encode_mask=encode_mask, tolist=False
+    )
+    points[points[:,6] == encode_id['gripper'] ,2] -=  gripper_project_offset # recover gripper depth from offset to zero.
+    print(np.unique(points[:, 6]))
+
+    for k,v in transform_dict.items():
+        pc_idx = points[:,6] == encode_id[k] 
+        ones = np.ones((points[pc_idx,:].shape[0], 1))
+        P = np.concatenate((points[pc_idx, :3], ones), axis=1)
+        points[pc_idx, :3] = np.matmul(P,np.transpose(v))[:, :3]
+                
+    # T1 = getT([0, 0, -0.2 * 5], [0, 0, 0], rot_type="euler")
+    # T2 = getT([0, 0, 0], [-45, 0, 0], rot_type="euler", euler_Degrees=True)
+    # ones = np.ones((points.shape[0], 1))
+    # P = np.concatenate((points[:, :3], ones), axis=1)
+    # points[:, :3] = np.matmul(P,np.transpose(TxT([T2,T1,])))[:, :3]
+    # images = []
+    # new_depth = np.zeros(depth.shape, dtype=np.uint8)
+    # for m_id, _ in enumerate(masks):
+    #     # print(np.unique(points[:, 6]))
+    #     _points = points[points[:, 6] == m_id + 1]  # mask out
+    #     if len(_points) == 0:
+    #         print("skip mask",m_id + 1)
+    #         continue
+    points = points[points[:,6] != 0, :] # remove background
+    occ_mat = pointclouds2occupancy(
+        points,
+        occup_h=occup_h,
+        occup_w=occup_w,
+        occup_d=occup_d,
+        pc_x_min=pc_x_min,
+        pc_x_max=pc_x_max,
+        pc_y_min=pc_y_min,
+        pc_y_max=pc_y_max,
+        pc_z_min=pc_z_min,
+        pc_z_max=pc_z_max,
+    )
+    z = occup2image(occ_mat, image_type='depth',background_encoding=background_encoding) 
+    del occ_mat
+    s = depth.shape
+    z = cv2.resize(z, (s[0], s[1]),interpolation=cv2.INTER_NEAREST)
+    return z
+
+     

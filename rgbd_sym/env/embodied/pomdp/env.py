@@ -51,7 +51,7 @@ class PomdpEnv(BaseEnv):
         new_obs = _obs.copy()
         obs_t = np.transpose(_obs['image'], axes=[2,1,0])
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
-        new_obs['image'] = np.uint8(obs_t*255) #
+        new_obs['image'] = np.uint8(obs_t*255) # real depth to depth image
         new_obs['depthReal'] =np.transpose(_obs['depth'][0,:,:], axes=[1,0])
         new_obs.pop('depth', None)
         return new_obs

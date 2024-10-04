@@ -131,42 +131,40 @@ def pointclouds2occupancy(pc_mat, occup_h, occup_w, occup_d,
     occ_mat[idx_x,idx_y,idx_z] = True
     return occ_mat
 
-def occup2image(occ_mat, image_type='projection',
-            pc_x_min=None,pc_x_max=None,
-            pc_y_min=None,pc_y_max=None,
-            pc_z_min=None,pc_z_max=None,
+def occup2image(occ_mat, image_type='projection', background_encoding=255
                 ):
     if image_type=="projection":
         occ_proj_y = np.sum(occ_mat, axis=0) !=0
         occ_proj_z = np.flip(np.transpose(np.sum(occ_mat, axis=1) != 0), 0)
         occ_proj_x = np.transpose(np.sum(occ_mat, axis=2) != 0)
         return occ_proj_x, occ_proj_y, occ_proj_z
-    elif image_type=="depth":
+    elif image_type=="depth_xyz":
         s = occ_mat.shape
         index_arr = np.tile(np.arange(s[0]).reshape(-1,1,1,), (1,s[1],s[2]))
         index_arr[np.logical_not(occ_mat)] = s[0]
         x = np.min(index_arr, axis=0)
+        x[x== s[0]] = 0 
         x = np.clip(scale_arr(x, 0, s[0]-1, 0, 255),0,255).astype(np.uint8)
         index_arr = np.tile(np.arange(s[1]).reshape(1,-1,1,), (s[0],1,s[2]))
         index_arr[np.logical_not(occ_mat)] = s[1]
         y = np.min(index_arr, axis=1)
+        y[y== s[1]] = 0 
         y = np.clip(scale_arr(y, 0, s[1]-1, 0, 255),0,255).astype(np.uint8)
         index_arr = np.tile(np.arange(s[2]).reshape(1,1,-1,), (s[0],s[1],1))
         index_arr[np.logical_not(occ_mat)] = s[2]
         z = np.min(index_arr, axis=2)
+        z[z== s[2]] = 0 
         z = np.clip(scale_arr(z, 0, s[2]-1, 0, 255),0,255).astype(np.uint8)
         z = np.transpose(z)
-        from matplotlib.pyplot import imshow, subplot, axis, cm, show
-        # print(x.shape)
-        
-        # subplot(1, 3, 1)
-        # imshow(x)
-        # subplot(1, 3, 2)
-        # imshow(y)
-        # subplot(1, 3, 3)
-        # imshow(z)        
-        # show()
-        return x, y, z
+    elif image_type=="depth":
+        s = occ_mat.shape
+        index_arr = np.tile(np.arange(s[2]).reshape(1,1,-1,), (s[0],s[1],1))
+        index_arr[np.logical_not(occ_mat)] = s[2]
+        z = np.min(index_arr, axis=2)
+        z[z== s[2]] = background_encoding 
+        z = np.clip(scale_arr(z, 0, s[2]-1, 0, 255),0,255).astype(np.uint8)
+        z = np.transpose(z)
+        return z
     else:
         raise NotImplementedError
 
