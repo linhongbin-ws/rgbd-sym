@@ -1,4 +1,4 @@
-# Install 
+# 1. Install
 ## 1.1. Download 
 
 ```sh
@@ -6,35 +6,50 @@ git clone https://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@github.com/linhongbin
 cd rgbd-sym
 git submodule update --init --recursive
 ```
+## 1.2. Conda Install
 
-## Miniconda Install
+- We use virtual environment in [miniconda](https://docs.anaconda.com/miniconda/)
 
-- Install [miniconda](https://docs.anaconda.com/miniconda/)
-
-- Edit file for environment variables [config.sh](./config/config.sh)
-
+- Edit environment variables of the following files
+  - [config.sh](./config/config.sh) for dreamerv2
+  - [config_dreamerv3.sh](./config/config_dreamerv3.sh) 
+  
 - source config files
     ```sh
-    source ./config/config.sh 
+    source ./config/config.sh # for drearmerv2
+    source ./config/config_dreamerv3.sh # for drearmerv3
     ```
 - Create conda virtual environment
     ```sh
     source $ANACONDA_PATH/bin/activate 
-    conda create -n $ENV_NAME python=3.9 -y
+    conda create -n $ENV_NAME python=3.9 -y # for dreamerv2
+    conda create -n $ENV_NAME python=3.10 -y # for dreamerv3
     ```
 - source init files again
     ```sh
-    source ./bash/init.sh 
+    source ./bash/init.sh # for drearmerv2
+    source ./bash/init_dreamerv3.sh # for drearmerv3
     ```
-- Install the dependency `equi-rl-for-pomdps`
+- Install baselines
+    - for dreamerv2
+    ```sh
+    conda install cudnn=8.2 cudatoolkit=11.3 libffi==3.3 ffmpeg -c anaconda -c conda-forge -y
+    pushd ext/dreamerv2/ && python -m pip install -e . && popd # install dreamerv2
+    python -m pip install -e . 
+    ```
+    - for dreamerv3
+    ```sh
+    pushd ./ext/dreamerv3/
+    pip install -U -r embodied/requirements.txt
+    pip install -U -r dreamerv3/requirements.txt -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+    popd
+    ```
+- Install the rest package dependency
     ```sh
     pushd ext/equi-rl-for-pomdps && python -m pip install -r requirements.txt && popd
     pushd ext/equi-rl-for-pomdps/pomdp_robot_domains/ && python -m pip install -r requirements.txt && python -m pip install -e . && popd
     pushd ext/equi-rl-for-pomdps/pomdp-domains/ &&  python -m pip install -e . && popd
     pushd ext/equi-rl-for-pomdps &&  python -m pip install -e . && popd
-    ```
-- Install `rgbd-sym`
-    ```
     python -m pip install -e . 
     ```
 
