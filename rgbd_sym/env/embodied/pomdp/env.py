@@ -64,6 +64,16 @@ class PomdpEnv(BaseEnv):
         # obs['is_success'] = gym.spaces.Discrete(2)
 
         return gym.spaces.Dict(obs)
+    @property
+    def seed(self):
+        return self._seed
+
+    @seed.setter
+    def seed(self, seed):
+        self._seed = seed
+        self.client.seed(seed)
+        self.client.core_env.pose_rng(seed)
+
 
 
 if __name__ == "__main__":
