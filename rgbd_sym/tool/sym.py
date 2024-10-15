@@ -196,9 +196,8 @@ def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
                             background_encoding=255
                            ):
     depth_real = scale_arr(depth, 0, 255, depth_real_min, depth_real_max) # depth image to depth
-    depth_real[mask_dict['gripper']] +=gripper_project_offset # gripper is depth zero, so we need to offset it in a camera view, otherwise the gripper shape is weird 
-    # print(depth_real[mask_dict['gripper']])
-    # print(depth_real[mask_dict['object1']])
+    if 'gripper' in mask_dict:
+        depth_real[mask_dict['gripper']] +=gripper_project_offset # gripper is depth zero, so we need to offset it in a camera view, otherwise the gripper shape is weird 
     encode_mask = np.zeros(depth.shape, dtype=np.uint8)
     # masks = [mask_dict[k] for k in mask_dict]
     # for i, v in enumerate(masks):
@@ -224,7 +223,8 @@ def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
     points = depth_image_to_point_cloud(
         rgb, depth_real, scale, K, pose, encode_mask=encode_mask, tolist=False
     )
-    points[points[:,6] == encode_id['gripper'] ,2] -=  gripper_project_offset # recover gripper depth from offset to zero.
+    if 'gripper' in mask_dict:
+        points[points[:,6] == encode_id['gripper'] ,2] -=  gripper_project_offset # recover gripper depth from offset to zero.
     print(np.unique(points[:, 6]))
 
     for k,v in transform_dict.items():
@@ -265,4 +265,63 @@ def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
     z = cv2.resize(z, (s[0], s[1]),interpolation=cv2.INTER_NEAREST)
     return z
 
-     
+
+def obs_transform(obs_depth, obs_masks, transform_dict):
+    _obs_depth = obs_depth.copy()
+    _obs_masks = obs_masks.copy()
+    fov = 45
+    gripper_project_offset = 0.2 # gripper is z zero, so projection is not in FOV45, we need to somehow recover
+    ws_scale = 0.08 
+    x_offset = +0.00
+    y_offset = -0.00
+    z_offset = 0.06
+    z_scale=12
+    pc_x_min=-ws_scale+x_offset
+    pc_x_max=ws_scale+x_offset
+    pc_y_min=-ws_scale+y_offset
+    pc_y_max=ws_scale+y_offset
+    pc_z_min=-ws_scale+z_offset
+    pc_z_max=ws_scale*z_scale+z_offset
+    occup_h=70
+    occup_w=70
+    occup_d=70
+    K = get_intrinsic_matrix(_obs_depth.shape[0], _obs_depth.shape[1], fov=45)
+
+    _depth = {}
+    for k,v in _obs_masks.items():
+        union_mask = None
+        for mask_k, mask_v in _obs_masks.items():
+            if mask_k!=k:
+                union_mask = mask_v if union_mask is None else np.logical_or(union_mask,mask_v)
+        _obj_mask = np.logical_and(v,np.logical_not(union_mask))
+        _depth[k] = np.ones(_obs_depth.shape, dtype=np.uint8)*255
+        _depth[k][v] = np.median(_obs_depth[_obj_mask])
+
+
+    depths = []
+    new_obs_masks = {}
+    for k,v in _depth.items():
+        depth_new =  local_depth_transform(v,
+                                mask_dict={k:_obs_masks[k]}, 
+                                transform_dict={k: transform_dict[k]},
+                                K=K, 
+                                depth_real_min=0, 
+                                depth_real_max=1,
+                                gripper_project_offset=gripper_project_offset,
+                                    pc_x_min=pc_x_min,
+                                    pc_x_max=pc_x_max,
+                                    pc_y_min=pc_y_min,
+                                    pc_y_max=pc_y_max,
+                                    pc_z_min=pc_z_min,
+                                    pc_z_max=pc_z_max,
+                                    occup_h=occup_h,
+                                    occup_w=occup_w,
+                                    occup_d=occup_d,
+                                    background_encoding=255)
+
+        depths.append(depth_new
+                    )
+        new_obs_masks[k] = depth_new!=255
+    new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
+
+    return new_obs_depth,new_obs_masks

@@ -10,3 +10,6 @@ default:
       pybullet_gui: False
       block_picking:
         something: True
+
+no_clutch:
+  wrapper.VirtualClutch.start: 0

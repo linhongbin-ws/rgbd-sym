@@ -6,6 +6,7 @@ from pomdp_envs import pomdp
 
 
 class PomdpEnv(BaseEnv):
+    """ action: [gripper, x,y,z,yaw]"""
     def __init__(self,
                  task,
                 pybullet_gui=False,
