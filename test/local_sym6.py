@@ -32,16 +32,16 @@ im1 = [get_depth_image(obs[0]['depth']) for obs in traj_obss]
 im2 = [obs[0]['rgb'] for obs in traj_obss]
 imgs = [im1, im2]
 
-plt_cnt = 0
-for im in imgs:
-    for i, img in enumerate(im):
-        plt_cnt+=1
-        ax = subplot(len(imgs), len(im), plt_cnt)
-        imshow(img,vmin=0, vmax=100)
-        plt.colorbar()
-        ax.set_title(f"obs {i+1}")
+# plt_cnt = 0
+# for im in imgs:
+#     for i, img in enumerate(im):
+#         plt_cnt+=1
+#         ax = subplot(len(imgs), len(im), plt_cnt)
+#         imshow(img,vmin=0, vmax=100)
+#         plt.colorbar()
+#         ax.set_title(f"obs {i+1}")
 
-show()
+# show()
 
 def action2transformdict(action):
     transform_dict= {}
@@ -57,8 +57,8 @@ def action2transformdict(action):
 
 new_traj_obss = []
 obs = deepcopy(traj_obss[-1][0])
-# obs['depth'] = {k: cv2.resize(v, (200,200), cv2.INTER_NEAREST) for k,v in obs['depth'].items()}
-# obs['mask'] = {k: bool_resize(v, (200,200)) for k,v in obs['mask'].items()}
+obs['depth'] = {k: cv2.resize(v, (84,84), interpolation =cv2.INTER_NEAREST) for k,v in obs['depth'].items()}
+obs['mask'] = {k: bool_resize(v, (84,84), reverse=True) for k,v in obs['mask'].items()}
 start_obs = deepcopy(obs)
 for i, traj_ob in enumerate([v for v in reversed(traj_obss)]):
     action = traj_ob[1]

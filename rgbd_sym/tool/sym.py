@@ -5,7 +5,8 @@ from rgbd_sym.tool.img_tool import bool_resize
 import numpy as np
 from scipy.ndimage import affine_transform
 from copy import deepcopy
-
+from matplotlib.pyplot import imshow, subplot, axis, cm, show
+import matplotlib.pyplot as plt
 # local sym dependency
 from rgbd_sym.tool.depth import get_intrinsic_matrix, depth_image_to_point_cloud, pointclouds2occupancy, occup2image,scale_K
 
@@ -111,51 +112,51 @@ def perturb(
     return current_image, next_image, new_action, transform_params
 
 
-def RGBDTransform(rgb, depth_real, fx, fy, cx,cy, Ts=[]):
-    assert len(Ts)!=0
-    height, width , channel = rgb.shape[0], rgb.shape[1],rgb.shape[2]
-    zs = depth_real.copy().reshape(-1)
-    rs = rgb[:,:,0].copy().reshape(-1)
-    gs = rgb[:,:,1].copy().reshape(-1)
-    bs = rgb[:,:,2].copy().reshape(-1)
-    rgb_u = np.stack(width*[np.arange(width)], axis=1)
-    rgb_v = np.stack(height*[np.arange(height)], axis=0)
-    rgb_u_arr = rgb_u.reshape(-1)
-    rgb_v_arr = rgb_v.reshape(-1)
-    xs = np.multiply((rgb_u_arr - cy) / (fx),  zs)
-    ys = np.multiply((rgb_v_arr - cx) / (fy),  zs)
+# def RGBDTransform(rgb, depth_real, fx, fy, cx,cy, Ts=[]):
+#     assert len(Ts)!=0
+#     height, width , channel = rgb.shape[0], rgb.shape[1],rgb.shape[2]
+#     zs = depth_real.copy().reshape(-1)
+#     rs = rgb[:,:,0].copy().reshape(-1)
+#     gs = rgb[:,:,1].copy().reshape(-1)
+#     bs = rgb[:,:,2].copy().reshape(-1)
+#     rgb_u = np.stack(width*[np.arange(width)], axis=1)
+#     rgb_v = np.stack(height*[np.arange(height)], axis=0)
+#     rgb_u_arr = rgb_u.reshape(-1)
+#     rgb_v_arr = rgb_v.reshape(-1)
+#     xs = np.multiply((rgb_u_arr - cy) / (fx),  zs)
+#     ys = np.multiply((rgb_v_arr - cx) / (fy),  zs)
     
-    new_rgbs = []
-    for T in Ts:
-        assert T.shape[0]==4 and  T.shape[1]==4
-        xyz = np.stack([xs,ys,zs, np.ones(xs.shape)], axis=0)
-        print(T.shape, xyz.shape)
-        new_xyz = np.matmul(T , xyz)
-        new_x = new_xyz[0,:]
-        new_y = new_xyz[1,:]
-        new_z = new_xyz[2,:]
-        print(fx * np.divide(new_x, new_z) + cy)
-        new_us = fx * np.divide(new_x, new_z) + cy
-        new_vs = fy * np.divide(new_y, new_z) + cx
-        new_us = np.around(new_us).astype(np.int)
-        new_vs = np.around(new_vs).astype(np.int)
+#     new_rgbs = []
+#     for T in Ts:
+#         assert T.shape[0]==4 and  T.shape[1]==4
+#         xyz = np.stack([xs,ys,zs, np.ones(xs.shape)], axis=0)
+#         print(T.shape, xyz.shape)
+#         new_xyz = np.matmul(T , xyz)
+#         new_x = new_xyz[0,:]
+#         new_y = new_xyz[1,:]
+#         new_z = new_xyz[2,:]
+#         print(fx * np.divide(new_x, new_z) + cy)
+#         new_us = fx * np.divide(new_x, new_z) + cy
+#         new_vs = fy * np.divide(new_y, new_z) + cx
+#         new_us = np.around(new_us).astype(np.int)
+#         new_vs = np.around(new_vs).astype(np.int)
 
-        new_us = new_us.reshape(-1)
-        new_vs = new_vs.reshape(-1)
-        new_rgb = np.zeros(( width, height, channel,),dtype=np.uint8)
-        new_depth = -np.ones(( width, height,),dtype=np.float)
-        for i in range(new_us.shape[0]):
-            u = new_us[i]
-            v = new_vs[i]
-            if (u<0) or (u>width-1): continue
-            if (v<0) or (v>height-1): continue
-            if new_depth[u,v] >= zs[i]: continue
+#         new_us = new_us.reshape(-1)
+#         new_vs = new_vs.reshape(-1)
+#         new_rgb = np.zeros(( width, height, channel,),dtype=np.uint8)
+#         new_depth = -np.ones(( width, height,),dtype=np.float)
+#         for i in range(new_us.shape[0]):
+#             u = new_us[i]
+#             v = new_vs[i]
+#             if (u<0) or (u>width-1): continue
+#             if (v<0) or (v>height-1): continue
+#             if new_depth[u,v] >= zs[i]: continue
 
-            new_rgb[u,v,0] = rs[i]
-            new_rgb[u,v,1] = gs[i]
-            new_rgb[u,v,2] = bs[i]
-        new_rgbs.append(new_rgb)
-    return new_rgbs
+#             new_rgb[u,v,0] = rs[i]
+#             new_rgb[u,v,1] = gs[i]
+#             new_rgb[u,v,2] = bs[i]
+#         new_rgbs.append(new_rgb)
+#     return new_rgbs
 
 
 
@@ -180,31 +181,38 @@ def local_depth_transform(depth_image, mask_dict,
                        (int(depth_image.shape[0]*depth_upsample), 
                         int(depth_image.shape[1]*depth_upsample),),
                            interpolation=cv2.INTER_NEAREST)
-    _mask_dict = {k: bool_resize(v, depth.shape) for k,v in mask_dict.items()}
+    _mask_dict = {k: bool_resize(v, depth.shape, reverse=True) for k,v in mask_dict.items()}
 
-
-    depth_real = scale_arr(depth, 0, 255, depth_real_min, depth_real_max) # depth image to depth
+    # imshow(depth)
+    # plt.colorbar()
+    # show()
+    depth_real = scale_arr(np.float32(depth), 0, 255, depth_real_min, depth_real_max) # depth image to depth
+    # imshow(depth_real)
+    # plt.colorbar()
+    # show()
+    # imshow(_mask_dict['gripper'])
+    # plt.colorbar()
+    # show()
     if 'gripper' in _mask_dict:
         depth_real[_mask_dict['gripper']] +=gripper_project_offset # gripper is depth zero, so we need to offset it in a camera view, otherwise the gripper shape is weird 
     encode_mask = np.zeros(depth.shape, dtype=np.uint8)
-    # masks = [mask_dict[k] for k in mask_dict]
-    # for i, v in enumerate(masks):
-    #     subplot(1, len(masks), i + 1)
-    #     axis("off")
-    #     imshow(v)
+
+    # imshow(depth_real)
+    # plt.colorbar()
     # show()
-    # mask_key = [k for k in mask_dict]
     masks = []
     encode_id = {}
     m_id = 0
     for k,v in _mask_dict.items():
         m_id+=1
         masks.append(k)
-        encode = m_id + 1
+        encode = m_id
         encode_mask[v] =encode
         encode_id[k] = encode
     # for m_id, m in enumerate(masks):
     #     encode_mask[m] = m_id + 1 # background 0, other mask key 1, 2, 3 ...
+    
+
     scale = 1
     pose = np.eye(4)
     rgb = np.zeros(depth.shape + (3,),dtype=np.uint8)
@@ -252,11 +260,14 @@ def local_depth_transform(depth_image, mask_dict,
         pc_z_min=pc_z_min,
         pc_z_max=pc_z_max,
     )
-    z = occup2image(occ_mat, image_type='depth',background_encoding=background_encoding) 
+    z, z_mask = occup2image(occ_mat, image_type='depth',background_encoding=background_encoding) 
     del occ_mat
     s = depth_image.shape
+    # imshow(z)
+    # show()
     z = cv2.resize(z, (s[0], s[1]),interpolation=cv2.INTER_NEAREST)
-    return z
+    z_mask = bool_resize(z_mask, (s[0], s[1]),method=cv2.INTER_NEAREST,reverse=True)
+    return z, z_mask
 
 
 def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsample=5):
@@ -290,11 +301,11 @@ def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsampl
     #     _depth[k] = np.ones(_obs_depth.shape, dtype=np.uint8)*255
     #     _depth[k][v] = np.median(_obs_depth[_obj_mask])
 
-    K = get_intrinsic_matrix(in_shape[0], in_shape[1], fov=45)
+    K = get_intrinsic_matrix(in_shape[0], in_shape[1], fov=fov)
     new_obs_depth = {}
     new_obs_masks = {}
-    for k,v in obs_depths.items():
-        depth_new =  local_depth_transform(v,
+    for k,v in _obs_depths.items():
+        depth_new, mask_new =  local_depth_transform(v,
                                 mask_dict={k:_obs_masks[k]}, 
                                 transform_dict={k: transform_dict[k]},
                                 K=K, 
@@ -315,6 +326,6 @@ def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsampl
 
         new_obs_depth[k] = depth_new
                     
-        new_obs_masks[k] = depth_new!=255
+        new_obs_masks[k] = mask_new
 
     return new_obs_depth, new_obs_masks
