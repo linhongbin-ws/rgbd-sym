@@ -1,11 +1,12 @@
 import numpy as np
 import cv2
 from rgbd_sym.tool.common import scale_arr, getT, TxT
+from rgbd_sym.tool.img_tool import bool_resize
 import numpy as np
 from scipy.ndimage import affine_transform
 
 # local sym dependency
-from rgbd_sym.tool.depth import get_intrinsic_matrix, depth_image_to_point_cloud, pointclouds2occupancy, occup2image
+from rgbd_sym.tool.depth import get_intrinsic_matrix, depth_image_to_point_cloud, pointclouds2occupancy, occup2image,scale_K
 
 def get_random_transform_params(image_size, trans_scale=1, rot_scale=1):
     theta = np.random.random() * 2 * np.pi
@@ -156,32 +157,9 @@ def RGBDTransform(rgb, depth_real, fx, fy, cx,cy, Ts=[]):
     return new_rgbs
 
 
-if __name__ == "__main__":
-    rgb = cv2.imread('./asset/20240326-124513-rgb.png')
-    depth = cv2.imread('./asset/20240326-124513-depth.png')
-
-    width = 600
-    height = 600
-    fov = 42/180*np.pi
-    fx = width / 2 / np.tan(fov/2)
-    fy = fx
-    cx = (width-1) / 2
-    cy = (height-1) / 2
-    
-
-    depth_real = scale_arr(depth[:,:,0], 0,255,1.25, 1.75)
-
-    T0 = getT([0,0,0,], [0,0,10], rot_type="euler", euler_convension="xyz", euler_Degrees=True)
-    Ts = [T0]
-    new_rgbs = RGBDTransform(rgb,depth_real,fx,fy, cx,cy, Ts)
 
 
-    for new_rgb in new_rgbs:
-        cv2.imshow('image',new_rgb)
-        cv2.waitKey(0)
-
-
-def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
+def local_depth_transform(depth_image, mask_dict, K, depth_real_min, depth_real_max,
                            gripper_project_offset,
                            transform_dict,
                             pc_x_min,
@@ -193,11 +171,19 @@ def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
                             occup_h,
                             occup_w,
                             occup_d,
-                            background_encoding=255
+                            background_encoding=255,
+                            depth_upsample=1,
                            ):
+    depth = cv2.resize(depth_image, 
+                       (int(depth_image.shape[0]*depth_upsample), 
+                        int(depth_image.shape[1]*depth_upsample),),
+                           interpolation=cv2.INTER_NEAREST)
+    _mask_dict = {k: bool_resize(v, depth.shape) for k,v in mask_dict.items()}
+
+
     depth_real = scale_arr(depth, 0, 255, depth_real_min, depth_real_max) # depth image to depth
-    if 'gripper' in mask_dict:
-        depth_real[mask_dict['gripper']] +=gripper_project_offset # gripper is depth zero, so we need to offset it in a camera view, otherwise the gripper shape is weird 
+    if 'gripper' in _mask_dict:
+        depth_real[_mask_dict['gripper']] +=gripper_project_offset # gripper is depth zero, so we need to offset it in a camera view, otherwise the gripper shape is weird 
     encode_mask = np.zeros(depth.shape, dtype=np.uint8)
     # masks = [mask_dict[k] for k in mask_dict]
     # for i, v in enumerate(masks):
@@ -209,7 +195,7 @@ def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
     masks = []
     encode_id = {}
     m_id = 0
-    for k,v in mask_dict.items():
+    for k,v in _mask_dict.items():
         m_id+=1
         masks.append(k)
         encode = m_id + 1
@@ -220,10 +206,15 @@ def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
     scale = 1
     pose = np.eye(4)
     rgb = np.zeros(depth.shape + (3,),dtype=np.uint8)
+    new_K = scale_K(K, 
+                    depth.shape[0]/depth_image.shape[0],  
+                    depth.shape[1]/depth_image.shape[1], )
+    print("K",K)
+    print("newK",new_K)
     points = depth_image_to_point_cloud(
-        rgb, depth_real, scale, K, pose, encode_mask=encode_mask, tolist=False
+        rgb, depth_real, scale, new_K, pose, encode_mask=encode_mask, tolist=False
     )
-    if 'gripper' in mask_dict:
+    if 'gripper' in _mask_dict:
         points[points[:,6] == encode_id['gripper'] ,2] -=  gripper_project_offset # recover gripper depth from offset to zero.
     print(np.unique(points[:, 6]))
 
@@ -261,7 +252,7 @@ def local_depth_transform(depth, mask_dict, K, depth_real_min, depth_real_max,
     )
     z = occup2image(occ_mat, image_type='depth',background_encoding=background_encoding) 
     del occ_mat
-    s = depth.shape
+    s = depth_image.shape
     z = cv2.resize(z, (s[0], s[1]),interpolation=cv2.INTER_NEAREST)
     return z
 
@@ -282,9 +273,9 @@ def obs_transform(obs_depth, obs_masks, transform_dict):
     pc_y_max=ws_scale+y_offset
     pc_z_min=-ws_scale+z_offset
     pc_z_max=ws_scale*z_scale+z_offset
-    occup_h=70
-    occup_w=70
-    occup_d=70
+    occup_h=84
+    occup_w=84
+    occup_d=84
     K = get_intrinsic_matrix(_obs_depth.shape[0], _obs_depth.shape[1], fov=45)
 
     _depth = {}

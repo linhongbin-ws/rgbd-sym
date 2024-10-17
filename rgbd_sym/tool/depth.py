@@ -106,6 +106,14 @@ def get_intrinsic_matrix(width, height, fov, degrees=True):
                     [0.0, 0.0, 1.0]]).astype(np.float)
     return mat
 
+def scale_K(K, width_scale, height_scale):
+    _K = K.copy()
+    _K[0,0] = _K[0,0]* width_scale
+    _K[0,2] = _K[0,2] * width_scale
+    _K[1,1] = _K[1,1] * height_scale
+    _K[1,2] = _K[1,2] * height_scale
+    return _K
+
 def pointclouds2occupancy(pc_mat, occup_h, occup_w, occup_d, 
                           pc_x_min=None,pc_x_max=None,
                           pc_y_min=None,pc_y_max=None,
