@@ -29,6 +29,7 @@ class PomdpEnv(BaseEnv):
         return obs
 
     def step(self, action, skip=False):
+        _action = action.copy()
         self.timestep += 1
         if skip:
             obs = self._prv_obs
@@ -37,7 +38,7 @@ class PomdpEnv(BaseEnv):
             info = {}
             info["success"] = False
         else:
-            obs, reward, done, info = self.client.step(action)
+            obs, reward, done, info = self.client.step(_action)
             obs = self._process_obs(obs)
             # obs['is_success'] = 1 if info['success'] else 0
         return obs, reward, done, info
@@ -54,7 +55,11 @@ class PomdpEnv(BaseEnv):
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
         new_obs['image'] = np.uint8(obs_t*255) # real depth to depth image
         new_obs['depthReal'] =np.transpose(_obs['depth'][0,:,:], axes=[1,0])
-        new_obs.pop('depth', None)
+        _m = None
+        for k,v in new_obs['mask'].items():
+            _m = np.logical_or(_m, v) if _m is not None else v
+        new_obs['depthReal'][np.logical_not(_m)] = 1 # backgound set to 1 meter
+        new_obs['depth'] =np.uint8(new_obs['depthReal']*255)
         return new_obs
     
     @property
