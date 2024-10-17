@@ -4,6 +4,7 @@ from rgbd_sym.tool.common import scale_arr, getT, TxT
 from rgbd_sym.tool.img_tool import bool_resize
 import numpy as np
 from scipy.ndimage import affine_transform
+from copy import deepcopy
 
 # local sym dependency
 from rgbd_sym.tool.depth import get_intrinsic_matrix, depth_image_to_point_cloud, pointclouds2occupancy, occup2image,scale_K
@@ -159,7 +160,8 @@ def RGBDTransform(rgb, depth_real, fx, fy, cx,cy, Ts=[]):
 
 
 
-def local_depth_transform(depth_image, mask_dict, K, depth_real_min, depth_real_max,
+def local_depth_transform(depth_image, mask_dict, 
+                          K, depth_real_min, depth_real_max,
                            gripper_project_offset,
                            transform_dict,
                             pc_x_min,
@@ -257,9 +259,9 @@ def local_depth_transform(depth_image, mask_dict, K, depth_real_min, depth_real_
     return z
 
 
-def obs_transform(obs_depth, obs_masks, transform_dict):
-    _obs_depth = obs_depth.copy()
-    _obs_masks = obs_masks.copy()
+def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsample=5):
+    _obs_depths = deepcopy(obs_depths)
+    _obs_masks = deepcopy(obs_masks)
     fov = 45
     gripper_project_offset = 0.2 # gripper is z zero, so projection is not in FOV45, we need to somehow recover
     ws_scale = 0.08 
@@ -273,25 +275,25 @@ def obs_transform(obs_depth, obs_masks, transform_dict):
     pc_y_max=ws_scale+y_offset
     pc_z_min=-ws_scale+z_offset
     pc_z_max=ws_scale*z_scale+z_offset
-    occup_h=84
-    occup_w=84
+    occup_h=84 
+    occup_w=84 
     occup_d=84
-    K = get_intrinsic_matrix(_obs_depth.shape[0], _obs_depth.shape[1], fov=45)
+    
 
-    _depth = {}
-    for k,v in _obs_masks.items():
-        union_mask = None
-        for mask_k, mask_v in _obs_masks.items():
-            if mask_k!=k:
-                union_mask = mask_v if union_mask is None else np.logical_or(union_mask,mask_v)
-        _obj_mask = np.logical_and(v,np.logical_not(union_mask))
-        _depth[k] = np.ones(_obs_depth.shape, dtype=np.uint8)*255
-        _depth[k][v] = np.median(_obs_depth[_obj_mask])
+    # _depth = {}
+    # for k,v in _obs_masks.items():
+    #     union_mask = None
+    #     for mask_k, mask_v in _obs_masks.items():
+    #         if mask_k!=k:
+    #             union_mask = mask_v if union_mask is None else np.logical_or(union_mask,mask_v)
+    #     _obj_mask = np.logical_and(v,np.logical_not(union_mask))
+    #     _depth[k] = np.ones(_obs_depth.shape, dtype=np.uint8)*255
+    #     _depth[k][v] = np.median(_obs_depth[_obj_mask])
 
-
-    depths = []
+    K = get_intrinsic_matrix(in_shape[0], in_shape[1], fov=45)
+    new_obs_depth = {}
     new_obs_masks = {}
-    for k,v in _depth.items():
+    for k,v in obs_depths.items():
         depth_new =  local_depth_transform(v,
                                 mask_dict={k:_obs_masks[k]}, 
                                 transform_dict={k: transform_dict[k]},
@@ -308,11 +310,11 @@ def obs_transform(obs_depth, obs_masks, transform_dict):
                                     occup_h=occup_h,
                                     occup_w=occup_w,
                                     occup_d=occup_d,
-                                    background_encoding=255)
+                                    background_encoding=255,
+                                    depth_upsample=depth_upsample)
 
-        depths.append(depth_new
-                    )
+        new_obs_depth[k] = depth_new
+                    
         new_obs_masks[k] = depth_new!=255
-    new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
 
-    return new_obs_depth,new_obs_masks
+    return new_obs_depth, new_obs_masks

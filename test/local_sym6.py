@@ -4,6 +4,7 @@ from matplotlib.pyplot import imshow, subplot, axis, cm, show
 import matplotlib.pyplot as plt
 from rgbd_sym.tool.depth import get_intrinsic_matrix, depth_image_to_point_cloud, pointclouds2occupancy, occup2image
 from rgbd_sym.tool.sym import local_depth_transform, obs_transform
+from rgbd_sym.tool.img_tool import bool_resize
 import numpy as np
 import cv2
 from copy import deepcopy
@@ -22,7 +23,12 @@ for i in range(steps):
     traj_obss.append((obs1, action1))
     print(action1)
 
-im1 = [obs[0]['depth'] for obs in traj_obss]
+def get_depth_image(depth_dict):
+    depths = [v for k,v in depth_dict.items()]
+    new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
+    return new_obs_depth
+
+im1 = [get_depth_image(obs[0]['depth']) for obs in traj_obss]
 im2 = [obs[0]['rgb'] for obs in traj_obss]
 imgs = [im1, im2]
 
@@ -51,7 +57,9 @@ def action2transformdict(action):
 
 new_traj_obss = []
 obs = deepcopy(traj_obss[-1][0])
-start_obs = deepcopy(traj_obss[-1][0])
+# obs['depth'] = {k: cv2.resize(v, (200,200), cv2.INTER_NEAREST) for k,v in obs['depth'].items()}
+# obs['mask'] = {k: bool_resize(v, (200,200)) for k,v in obs['mask'].items()}
+start_obs = deepcopy(obs)
 for i, traj_ob in enumerate([v for v in reversed(traj_obss)]):
     action = traj_ob[1]
     new_traj_obss.append((obs, action))
@@ -63,7 +71,10 @@ for i, traj_ob in enumerate([v for v in reversed(traj_obss)]):
 
     new_obs = deepcopy(obs)
     transform_dict = action2transformdict(-action)
-    new_obs['depth'], new_obs['mask'] = obs_transform(obs['depth'], obs['mask'], transform_dict)
+    new_obs['depth'], new_obs['mask'] = obs_transform(obs['depth'], obs['mask'], transform_dict,
+                                                      obs['depth']['gripper'].shape,
+                                                      depth_upsample=6,
+                                                      )
     obs = deepcopy(new_obs)
     # imgs = [v for k,v in obs["mask"].items()]
     # imgs.append(obs['image'])
@@ -80,8 +91,8 @@ new_traj_obss = [v for v in reversed(new_traj_obss)]
 traj_obss = [(original_obs, None)] + traj_obss
 
 print(traj_obss)
-im1 = [obs[0]['depth'] for obs in traj_obss]
-im2 = [obs[0]['depth'] for obs in new_traj_obss]
+im1 = [get_depth_image(obs[0]['depth']) for obs in traj_obss]
+im2 = [get_depth_image(obs[0]['depth']) for obs in new_traj_obss]
 imgs = [im1, im2]
 
 plt_cnt = 0

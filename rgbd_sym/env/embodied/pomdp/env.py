@@ -18,7 +18,7 @@ class PomdpEnv(BaseEnv):
         obs = self.client.reset()
         obs = self._process_obs(obs)
         # print(obs.keys())
-        self._new_obs_shape = {k: v.shape for k, v in obs.items() if k not in ["mask"]}
+        self._new_obs_shape = {k: v.shape for k, v in obs.items() if k not in ["mask","depth"]}
 
     def reset(self):
         self.timestep = 0
@@ -54,12 +54,13 @@ class PomdpEnv(BaseEnv):
         obs_t = np.transpose(_obs['image'], axes=[2,1,0])
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
         new_obs['image'] = np.uint8(obs_t*255) # real depth to depth image
-        new_obs['depthReal'] =np.transpose(_obs['depth'][0,:,:], axes=[1,0])
-        _m = None
-        for k,v in new_obs['mask'].items():
-            _m = np.logical_or(_m, v) if _m is not None else v
-        new_obs['depthReal'][np.logical_not(_m)] = 1 # backgound set to 1 meter
-        new_obs['depth'] =np.uint8(new_obs['depthReal']*255)
+        new_obs['depth'] = {k:np.uint8(v*255) for k,v in _obs['depth'].items()}
+        # new_obs['depthReal'] =np.transpose(_obs['depth'][0,:,:], axes=[1,0])
+        # _m = None
+        # for k,v in new_obs['mask'].items():
+        #     _m = np.logical_or(_m, v) if _m is not None else v
+        # new_obs['depthReal'][np.logical_not(_m)] = 1 # backgound set to 1 meter
+        # new_obs['depth'] =np.uint8(new_obs['depthReal']*255)
         return new_obs
     
     @property
