@@ -219,14 +219,12 @@ def local_depth_transform(depth_image, mask_dict,
     new_K = scale_K(K, 
                     depth.shape[0]/depth_image.shape[0],  
                     depth.shape[1]/depth_image.shape[1], )
-    print("K",K)
-    print("newK",new_K)
     points = depth_image_to_point_cloud(
         rgb, depth_real, scale, new_K, pose, encode_mask=encode_mask, tolist=False
     )
     if 'gripper' in _mask_dict:
         points[points[:,6] == encode_id['gripper'] ,2] -=  gripper_project_offset # recover gripper depth from offset to zero.
-    print(np.unique(points[:, 6]))
+    # print(np.unique(points[:, 6]))
 
     for k,v in transform_dict.items():
         pc_idx = points[:,6] == encode_id[k] 
@@ -329,3 +327,18 @@ def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsampl
         new_obs_masks[k] = mask_new
 
     return new_obs_depth, new_obs_masks
+
+def traj_transform(start_obs, Ts,):
+    current_trans_dict = {k: getT([0,0,0],[0,0,0],rot_type="euler") for k,v in Ts[0].items()}
+    new_obss = []
+    for i, transform_dict in enumerate(Ts):
+        new_obs = deepcopy(start_obs)
+        for _k, _v in transform_dict.items():
+            current_trans_dict[_k] = TxT([_v, current_trans_dict[_k]])
+
+        new_obs['depth'], new_obs['mask'] = obs_transform(start_obs['depth'], start_obs['mask'], current_trans_dict,
+                                                        start_obs['depth']['gripper'].shape,
+                                                        depth_upsample=6,
+                                                        )
+        new_obss.append(new_obs)
+    return new_obss
