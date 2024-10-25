@@ -3,6 +3,7 @@ from rgbd_sym.env.embodied.base import BaseEnv
 import gym
 import numpy as np
 from pomdp_envs import pomdp
+from rgbd_sym.tool.common import scale_arr
 
 
 class PomdpEnv(BaseEnv):
@@ -54,13 +55,9 @@ class PomdpEnv(BaseEnv):
         obs_t = np.transpose(_obs['image'], axes=[2,1,0])
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
         new_obs['image'] = np.uint8(obs_t*255) # real depth to depth image
-        new_obs['depth'] = {k:np.uint8(v*255) for k,v in _obs['depth'].items()}
-        # new_obs['depthReal'] =np.transpose(_obs['depth'][0,:,:], axes=[1,0])
-        # _m = None
-        # for k,v in new_obs['mask'].items():
-        #     _m = np.logical_or(_m, v) if _m is not None else v
-        # new_obs['depthReal'][np.logical_not(_m)] = 1 # backgound set to 1 meter
-        # new_obs['depth'] =np.uint8(new_obs['depthReal']*255)
+        new_obs['depth'] = {k:np.uint8(scale_arr(v, 0,1,0,255)) for k,v in _obs['depth'].items()}
+        for k,v in new_obs['depth'].items():
+            new_obs['depth'][k][np.logical_not(new_obs['mask'][k])] = 255 
         return new_obs
     
     @property

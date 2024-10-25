@@ -33,13 +33,18 @@ if not args.no_vis:
 if args.eval:
     env.to_eval()
 print("action space:" , env.action_space)
+def get_depth_image(depth_dict):
+    depths = [v for k,v in depth_dict.items()]
+    new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
+    return new_obs_depth
+
 for _ in tqdm(range(args.repeat)):
     done = False
     obs = env.reset()
     if not args.no_vis:
         img = obs.copy()
         # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
-        img.pop("depthReal", None)
+        img.pop("depth", None)
         img_break = env.cv_show(imgs=img)
         # img_break = env.cv_show(imgs=img)
     # print("obs:", obs)
@@ -54,21 +59,19 @@ for _ in tqdm(range(args.repeat)):
             action = env.action_space.sample()
         elif args.action == "oracle":
             action = env.get_oracle_action()
+            print(action)
         else:
             raise NotImplementedError
         # print("step....")
         obs, reward, done, info = env.step(action)
-        print_obs = obs.copy()
-        print_obs = {k: v.shape if k in [
-            "image", "rgb", "depth"] else v for k, v in print_obs.items()}
-        print_obs = [str(k) + ":" + str(v) for k, v in print_obs.items()]
-        # print(" | ".join(print_obs))
+
         print("reward:", reward, "done:", done,)
 
         # print(obs)
         img = obs.copy()
+        img['depth'] =get_depth_image(img['depth'])
         # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
-        img.pop("depthReal", None)
+        # img.pop("depth", None)
         print(img.keys())
 
         if not args.no_vis:

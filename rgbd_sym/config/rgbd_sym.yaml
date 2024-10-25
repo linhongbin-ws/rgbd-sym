@@ -13,3 +13,6 @@ default:
 
 no_clutch:
   wrapper.VirtualClutch.start: 0
+
+gui:
+  embodied.PomdpEnv.pybullet_gui: True

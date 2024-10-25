@@ -3,10 +3,12 @@ from numpy.linalg import inv
 from scipy.spatial.transform import Rotation as R
 import pandas as pd
 
-def scale_arr(_input, old_min,old_max,new_min,new_max):
+def scale_arr(_input, old_min,old_max,new_min,new_max, clip=False):
     _in = _input
     _in = np.divide(_input-old_min,old_max-old_min)
     _in = np.multiply(_in,new_max-new_min) + new_min
+    if clip:
+        np.clip(_in, new_min, new_max)
     return _in
 
 def invT(T):

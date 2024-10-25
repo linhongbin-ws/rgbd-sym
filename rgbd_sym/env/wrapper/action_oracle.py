@@ -1,18 +1,19 @@
 from rgbd_sym.env.wrapper.base import BaseWrapper
 import sys
-
+import numpy as np
 
 class ActionOracle(BaseWrapper):
     KEYBOARD_MAP = {
-        "w": 0,
-        "s": 1,
-        "a": 2,
-        "d": 3,
-        "k": 4,
-        "i": 5,
-        "j": 6,
-        "l": 7,
-        "n": 8,
+        "w": np.array([0,1,0,0,0],dtype=float),
+        "s": np.array([0,-1,0,0,0],dtype=float),
+        "a": np.array([0,0,1,0,0],dtype=float),
+        "d": np.array([0,0,-1,0,0],dtype=float),
+        "k": np.array([0,0,0,1,0],dtype=float),
+        "i": np.array([0,0,0,-1,0],dtype=float),
+        "j": np.array([0,0,0,0,1],dtype=float),
+        "l": np.array([0,1,0,0,-1],dtype=float),
+        "n": np.array([1,0,0,0,0],dtype=float),
+        "b": np.array([-1,0,0,0,0],dtype=float),
     }
 
     def __init__(self, env,
