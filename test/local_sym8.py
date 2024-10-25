@@ -65,12 +65,16 @@ im2 = [get_depth_image(obs['depth']) for obs in sim_traj_obss]
 imgs = [im1, im2]
 
 plt_cnt = 0
-for im in imgs:
+titles= ["real trajectory", "simulated backtrace trajectory"]
+for k, im in enumerate(imgs):
     for i, img in enumerate(im):
         plt_cnt+=1
         ax = subplot(len(imgs), len(im), plt_cnt)
         imshow(img,vmin=0, vmax=100)
         plt.colorbar()
-        ax.set_title(f"obs {i+1}")
+        if i == (len(im) -1):
+            ax.set_title(f"{titles[0]} step {i+1}, backtrace image!")
+        else:
+            ax.set_title(f"{titles[k]} step {i+1}")
 
 show()

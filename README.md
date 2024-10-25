@@ -38,26 +38,13 @@ git submodule update --init --recursive
     python -m pip install -e . 
     ```
 
-<!-- ### 1.1.2. Install with DreamerV3
-
-- Install dreamerv3
-    ```sh
-    source ./config/config_dreamerv3.sh
-    source $ANACONDA_PATH/bin/activate 
-    conda create -n $ENV_NAME python=3.10 -y
-    source bash/init_dreamerv3.sh
-    conda install nvidia/label/cuda-12.3.2::cuda -y
-    conda install -c anaconda cudnn=9 -y
-    pip install -U "jax[cuda12]"
-    ``` -->
 
 # Run
 
 ## Env play
 - Init conda environment
     ```sh
-    source ./bash/init.sh # for drearmerv2
-    source ./bash/init_dreamerv3.sh # for drearmerv3
+    source ./bash/init.sh 
     ```
 - Play environment with demonstration script
 
@@ -66,17 +53,18 @@ git submodule update --init --recursive
     ```
     press any key to proceed steps.
 
-## Train baselines
+- Backtrace with sym
+
+    ```sh
+    python ./test/local_sym8.py
+    ```
+
+<!-- ## Train baselines
 - Init conda environment
     ```sh
     source ./bash/init.sh # for drearmerv2
-    source ./bash/init_dreamerv3.sh # for drearmerv3
     ```
 - Train dreamerv2
   ```
   python ./run/rl.py --baseline-tag pomdp --baseline dreamerv2 --env-tag pomdp
-  ```
-- Train dreamerv3
-  ```
-  python ./run/train_dreamerv3.py 
-  ```
+  ``` -->
