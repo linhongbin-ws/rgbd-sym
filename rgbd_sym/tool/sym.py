@@ -176,6 +176,7 @@ def local_depth_transform(depth_image, mask_dict,
                             occup_d,
                             background_encoding=255,
                             depth_upsample=1,
+                            debug=False,
                            ):
     depth = cv2.resize(depth_image, 
                        (int(depth_image.shape[0]*depth_upsample), 
@@ -259,16 +260,23 @@ def local_depth_transform(depth_image, mask_dict,
         pc_z_max=pc_z_max,
     )
     z, z_mask = occup2image(occ_mat, image_type='depth',background_encoding=background_encoding) 
+    if debug:
+        from matplotlib.pyplot import imshow, subplot, axis, cm, show
+        import matplotlib.pyplot as plt
+        imshow(z_mask)
+        plt.colorbar()
+        show()
     del occ_mat
     s = depth_image.shape
     # imshow(z)
     # show()
     z = cv2.resize(z, (s[0], s[1]),interpolation=cv2.INTER_NEAREST)
     z_mask = bool_resize(z_mask, (s[0], s[1]),method=cv2.INTER_NEAREST,reverse=True)
+
     return z, z_mask
 
 
-def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsample=5):
+def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsample=5, debug=False):
     _obs_depths = deepcopy(obs_depths)
     _obs_masks = deepcopy(obs_masks)
     fov = 45
@@ -325,6 +333,13 @@ def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsampl
         new_obs_depth[k] = depth_new
                     
         new_obs_masks[k] = mask_new
+    
+    if debug:
+        from matplotlib.pyplot import imshow, subplot, axis, cm, show
+        import matplotlib.pyplot as plt
+        imshow(mask_new)
+        plt.colorbar()
+        show()
 
     return new_obs_depth, new_obs_masks
 

@@ -15,6 +15,7 @@ class PomdpEnv(BaseEnv):
         if task== 'block_picking':
             task_id = "BlockPicking-Symm-v0"
         client=gym.make(task_id, rendering=pybullet_gui)
+        client.unwrapped._obs_dict = True
         super().__init__(client)
         obs = self.client.reset()
         obs = self._process_obs(obs)
@@ -27,7 +28,8 @@ class PomdpEnv(BaseEnv):
         obs = self._process_obs(obs)
         # obs['is_success'] = 0
         self._prv_obs = obs
-        return obs
+        out_obs = {k:v for k,v in obs.items() if k in ["image"]}
+        return out_obs
 
     def step(self, action, skip=False):
         _action = action.copy()
@@ -42,7 +44,8 @@ class PomdpEnv(BaseEnv):
             obs, reward, done, info = self.client.step(_action)
             obs = self._process_obs(obs)
             # obs['is_success'] = 1 if info['success'] else 0
-        return obs, reward, done, info
+        out_obs = {k:v for k,v in obs.items() if k in ["image"]}
+        return out_obs, reward, done, info
 
     def render(self, mode="human"):  # ['human', 'rgb_array', 'mask_array']
         return self.client.render(mode=mode)

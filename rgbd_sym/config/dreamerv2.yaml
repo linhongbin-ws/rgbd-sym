@@ -201,7 +201,7 @@ debug:
   replay: { minlen: 10, maxlen: 30 }
   dataset: { batch: 10, length: 10 }
   eval_eps: 2
-  prefill: { random: 3e2, oracle: 1e2 }
+  prefill: { random: 2, oracle: 2 }
 
 gym_ras_np:
   eval_every: 3e4
@@ -285,4 +285,4 @@ high_oracle:
   prefill: { random: 7e3, oracle: 3e3 }
 
 debug_prefill:
-  prefill: { random: 10, oracle: 10 }
+  prefill: { random: 2, oracle: 2 }

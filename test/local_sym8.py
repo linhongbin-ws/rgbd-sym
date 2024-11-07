@@ -62,7 +62,10 @@ sim_traj_obss = [v for v in reversed(sim_reverse_traj_obss)]
 
 im1 = [get_depth_image(obs[0]['depth']) for obs in traj_obss]
 im2 = [get_depth_image(obs['depth']) for obs in sim_traj_obss]
-imgs = [im1, im2]
+print(sim_traj_obss[0]['mask'])
+im3 = [obs[0]['mask']['object1'] for obs in traj_obss]
+im4 = [obs['mask']['object1'] for obs in sim_traj_obss]
+imgs = [im1, im2, im3, im4]
 
 plt_cnt = 0
 titles= ["real trajectory", "simulated backtrace trajectory"]
@@ -70,11 +73,11 @@ for k, im in enumerate(imgs):
     for i, img in enumerate(im):
         plt_cnt+=1
         ax = subplot(len(imgs), len(im), plt_cnt)
-        imshow(img,vmin=0, vmax=100)
+        imshow(img)
         plt.colorbar()
-        if i == (len(im) -1):
-            ax.set_title(f"{titles[0]} step {i+1}, backtrace image!")
-        else:
-            ax.set_title(f"{titles[k]} step {i+1}")
+        # if i == (len(im) -1):
+        #     ax.set_title(f"{titles[0]} step {i+1}, backtrace image!")
+        # else:
+        #     ax.set_title(f"{titles[k]} step {i+1}")
 
 show()

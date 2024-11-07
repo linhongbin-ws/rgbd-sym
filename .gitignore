@@ -12,3 +12,6 @@ log/
 **build/
 data/
 logdir/
+wandb/
+
+logs/
