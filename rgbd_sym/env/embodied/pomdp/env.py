@@ -11,25 +11,29 @@ class PomdpEnv(BaseEnv):
     def __init__(self,
                  task,
                 pybullet_gui=False,
+                obs_dict =True,
                   **kwargs,):
         if task== 'block_picking':
             task_id = "BlockPicking-Symm-v0"
         client=gym.make(task_id, rendering=pybullet_gui)
-        client.unwrapped._obs_dict = True
+        client.unwrapped._obs_dict = obs_dict
         super().__init__(client)
-        obs = self.client.reset()
-        obs = self._process_obs(obs)
+        # obs = self.client.reset()
+        # obs = self._process_obs(obs)
         # print(obs.keys())
-        self._new_obs_shape = {k: v.shape for k, v in obs.items() if k not in ["mask","depth"]}
+        self._new_obs_shape = None 
+        self._obs_dict = obs_dict
 
     def reset(self):
         self.timestep = 0
         obs = self.client.reset()
-        obs = self._process_obs(obs)
-        # obs['is_success'] = 0
         self._prv_obs = obs
-        out_obs = {k:v for k,v in obs.items() if k in ["image"]}
-        return out_obs
+        if self._obs_dict:
+            obs = self._process_obs(obs)
+            out_obs = {k:v for k,v in obs.items() if k in ["image"]}
+            return out_obs
+        else:
+            return obs
 
     def step(self, action, skip=False):
         _action = action.copy()
@@ -42,9 +46,14 @@ class PomdpEnv(BaseEnv):
             info["success"] = False
         else:
             obs, reward, done, info = self.client.step(_action)
-            obs = self._process_obs(obs)
+            if self._obs_dict:
+                obs = self._process_obs(obs)
             # obs['is_success'] = 1 if info['success'] else 0
-        out_obs = {k:v for k,v in obs.items() if k in ["image"]}
+        if self._obs_dict:
+            out_obs = {k:v for k,v in obs.items() if k in ["image"]}
+        else:
+            out_obs = obs
+    
         return out_obs, reward, done, info
 
     def render(self, mode="human"):  # ['human', 'rgb_array', 'mask_array']
@@ -65,11 +74,17 @@ class PomdpEnv(BaseEnv):
     
     @property
     def observation_space(self):
+        if self._new_obs_shape is None:
+            obs = self.reset()
+            self._new_obs_shape = {k: v.shape for k, v in obs.items() if k not in ["mask","depth"]}
         obs = {}
         obs['image'] = gym.spaces.Box(0, 255, self._new_obs_shape["image"],
                                           dtype=np.uint8)
         # obs['is_success'] = gym.spaces.Discrete(2)
-
+        if not self._obs_dict:
+            obs = obs['image']
+            return obs
+        
         return gym.spaces.Dict(obs)
     @property
     def seed(self):
@@ -80,6 +95,11 @@ class PomdpEnv(BaseEnv):
         self._seed = seed
         self.client.seed(seed)
         self.client.core_env.pose_rng(seed)
+
+    def __getattr__(self, name):
+        """__getattr__ is only invoked if the attribute wasn't found the usual ways."""
+        return getattr(self.client, name)
+
 
 
 

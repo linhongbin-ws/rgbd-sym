@@ -8,11 +8,15 @@ default:
   embodied:
     PomdpEnv:
       pybullet_gui: False
+      obs_dict: True
       block_picking:
         something: True
 
 no_clutch:
   wrapper.VirtualClutch.start: 0
+
+no_obs_dict:
+  embodied.PomdpEnv.obs_dict: False
 
 gui:
   embodied.PomdpEnv.pybullet_gui: True

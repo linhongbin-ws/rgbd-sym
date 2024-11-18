@@ -11,10 +11,10 @@ class BaseWrapper():
 
     def __getattr__(self, name):
         """__getattr__ is only invoked if the attribute wasn't found the usual ways."""
-        if name[0] == "_":
-            raise Exception("cannot find {}".format(name))
-        else:
-            return getattr(self.env, name)
+        # if name[0] == "_":
+        #     raise Exception("cannot find {}".format(name))
+        # else:
+        return getattr(self.env, name)
 
     def _reset_vars(self):
         pass

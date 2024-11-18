@@ -33,6 +33,7 @@ if not args.no_vis:
 if args.eval:
     env.to_eval()
 print("action space:" , env.action_space)
+print("observation space:" , env.observation_space)
 def get_depth_image(depth_dict):
     depths = [v for k,v in depth_dict.items()]
     new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
