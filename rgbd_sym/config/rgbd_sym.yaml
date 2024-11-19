@@ -17,6 +17,7 @@ no_clutch:
 
 no_obs_dict:
   embodied.PomdpEnv.obs_dict: False
+  wrapper.VirtualClutch: { start: 0 }
 
 gui:
   embodied.PomdpEnv.pybullet_gui: True
