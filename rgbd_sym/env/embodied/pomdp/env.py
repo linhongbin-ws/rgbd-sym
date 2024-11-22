@@ -13,8 +13,10 @@ class PomdpEnv(BaseEnv):
                 pybullet_gui=False,
                 obs_dict =True,
                   **kwargs,):
-        if task== 'block_picking':
+        if task== 'block_pick':
             task_id = "BlockPicking-Symm-v0"
+        elif task== 'block_pull':
+            task_id = "BlockPulling-Symm-v0"
         client=gym.make(task_id, rendering=pybullet_gui)
         client.unwrapped._obs_dict = obs_dict
         super().__init__(client)

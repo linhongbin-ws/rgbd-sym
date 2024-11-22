@@ -81,10 +81,11 @@ for _ in tqdm(range(args.repeat)):
 
         print("reward:", reward, "done:", done,)
 
-        # print(obs)
+        print(obs)
         img = obs.copy()
 
         if isinstance(img, dict):
+            print(img.keys())
             img["depth"] = get_depth_image(img["depth"])
         else:
             if img.shape[0] < 3:

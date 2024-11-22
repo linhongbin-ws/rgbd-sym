@@ -3,13 +3,15 @@ default:
   wrapper:
     pipeline: ['VirtualClutch']
     VirtualClutch: { start: 6 }
-  task_name: block_picking
+  task_name: block_pick
   embodied_name: PomdpEnv
   embodied:
     PomdpEnv:
       pybullet_gui: False
       obs_dict: True
-      block_picking:
+      block_pick:
+        something: True
+      block_pull:
         something: True
 
 no_clutch:
@@ -21,3 +23,6 @@ no_obs_dict:
 
 gui:
   embodied.PomdpEnv.pybullet_gui: True
+
+block_pull:
+  task_name: block_pull
