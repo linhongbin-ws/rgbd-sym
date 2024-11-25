@@ -47,6 +47,8 @@ for _ in tqdm(range(args.repeat)):
         # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
         if isinstance(img, dict):
             img.pop("depth", None)
+            img.pop("depthR", None)
+            img.pop("imageR", None)
         else:
             if img.shape[0] <3:
                 img = np.transpose(img, axes=[2,1,0])
@@ -87,6 +89,8 @@ for _ in tqdm(range(args.repeat)):
         if isinstance(img, dict):
             print(img.keys())
             img["depth"] = get_depth_image(img["depth"])
+            img.pop("imageR", None)
+            img.pop("depthR", None)
         else:
             if img.shape[0] < 3:
                 img = np.transpose(img, axes=[2, 1, 0])

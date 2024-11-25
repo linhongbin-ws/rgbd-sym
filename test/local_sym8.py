@@ -31,7 +31,7 @@ def get_depth_image(depth_dict):
     depths = [v for k,v in depth_dict.items()]
     new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
     return new_obs_depth
-
+print(traj_obss[0])
 im1 = [get_depth_image(obs[0]['depth']) for obs in traj_obss]
 im2 = [obs[0]['rgb'] for obs in traj_obss]
 imgs = [im1, im2]

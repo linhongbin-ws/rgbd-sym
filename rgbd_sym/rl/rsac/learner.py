@@ -30,7 +30,7 @@ from buffers.seq_rad_rot import SeqRadRotBuffer
 from buffers_efficient.seq_vanilla import SeqBuffer as SeqBufferEff
 from buffers_efficient.seq_rot import SeqRotBuffer as SeqRotBufferEff
 from buffers_efficient.seq_per_rot import SeqPerRotBuffer as SeqPerRotBufferEff
-
+from rgbd_sym.rl.rsac.seq_rot_center import SeqRotBufferCenter
 from utils import helpers as utl
 from torchkit import pytorch_utils as ptu
 from utils import logger
@@ -291,6 +291,9 @@ class Learner:
             # prioritized replay + rotational augmentation (for BlockPushing)
             elif buffer_type == SeqPerRotBufferEff.buffer_type:
                 buffer_class = SeqPerRotBufferEff
+                
+            elif buffer_type == SeqRotBufferCenter.buffer_type:
+                buffer_class = SeqRotBufferCenter
 
             else:
                 raise NotImplementedError
