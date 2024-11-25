@@ -129,10 +129,10 @@ class Learner:
         
             # self.train_env = gym.make(env_name, rendering=self.replay)
             from rgbd_sym.api import make_env
-            self.train_env, env_config = make_env(tags=['no_obs_dict'], seed=self.seed)
+            self.train_env, env_config = make_env(tags=['block_pull','no_obs_dict'], seed=self.seed)
             # self.train_env.seed = self.seed
             # self.train_env.action_space.np_random.seed(self.seed)  # crucial
-            self.eval_env, env_config = make_env(tags=['no_obs_dict'], seed=self.seed + 1)
+            self.eval_env, env_config = make_env(tags=['block_pull','no_obs_dict'], seed=self.seed + 1)
             # self.eval_env = self.train_env
             # self.eval_env.seed(self.seed + 1)
 
