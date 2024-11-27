@@ -92,6 +92,7 @@ git submodule update --init --recursive
 ```sh
 source bash/init.sh
 python ./ext/equi-rl-for-pomdps/policies/main.py --cfg ./ext/equi-rl-for-pomdps/configs/block_picking/rnn.yml --algo sac --seed 0 --cuda 0 --num_expert_episodes 80
+python ./rgbd_sym/rl/rsac/main.py --cfg ./rgbd_sym/rl/rsac/configs/block_pulling/rnn.yml --algo sac --seed 0 --cuda 0 --num_expert_episodes 80
 ```
 
 ## Train Dreamerv2

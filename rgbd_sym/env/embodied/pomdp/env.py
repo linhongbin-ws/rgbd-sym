@@ -51,30 +51,25 @@ class PomdpEnv(BaseEnv):
 
     def _process_obs(self, _obs):
         new_obs = _obs.copy()
+        new_obs["image"] = _obs['image']
         obs_t = np.transpose(_obs['image'], axes=[1,2,0])
         obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
-        new_obs["imageR"] = obs_t
-        new_obs['image'] = np.uint8(obs_t*255) # real depth to depth image
+        new_obs['image_new'] = np.uint8(obs_t*255) # real depth to depth image
         for k, v in new_obs["depth"].items():
             new_obs["depth"][k][np.logical_not(new_obs["mask"][k])] = 1
         new_obs["depthR"] = deepcopy(_obs["depth"])
         new_obs['depth'] = {k:np.uint8(scale_arr(v, 0,1,0,255)) for k,v in _obs['depth'].items()}
         return new_obs
 
-    # @property
-    # def observation_space(self):
-    #     if self._new_obs_shape is None:
-    #         obs = self.reset()
-    #         self._new_obs_shape = {k: v.shape for k, v in obs.items() if k not in ["mask","depth"]}
-    #     obs = {}
-    #     obs['image'] = gym.spaces.Box(0, 255, self._new_obs_shape["image"],
-    #                                       dtype=np.uint8)
-    #     # obs['is_success'] = gym.spaces.Discrete(2)
-    #     if not self._obs_dict:
-    #         obs = obs['image']
-    #         return obs
+    @property
+    def observation_space(self):
+        if self._new_obs_shape is None:
+            obs = self.reset()
+            self._new_obs_shape = obs['image'].shape
+        return gym.spaces.Box(0, 255, self._new_obs_shape,
+                                          dtype=np.uint8)
+    
 
-    #     return gym.spaces.Dict(obs)
     @property
     def seed(self):
         return self._seed

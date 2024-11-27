@@ -1,5 +1,6 @@
 from matplotlib.pyplot import imshow, subplot, axis, cm, show
 import matplotlib.pyplot as plt
+import matplotlib
 
 
 def plot_img(imgs_2d):
@@ -16,3 +17,9 @@ def plot_img(imgs_2d):
         #     ax.set_title(f"{titles[k]} step {i+1}")
 
     show()
+
+def get_backend():
+    return matplotlib.get_backend()
+
+def use_backend(backend):
+    matplotlib.use(backend)

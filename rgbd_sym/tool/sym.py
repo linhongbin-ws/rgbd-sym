@@ -261,11 +261,9 @@ def local_depth_transform(depth_image, mask_dict,
     )
     z, z_mask = occup2image(occ_mat, image_type='depth',background_encoding=background_encoding) 
     if debug:
-        from matplotlib.pyplot import imshow, subplot, axis, cm, show
-        import matplotlib.pyplot as plt
-        imshow(z_mask)
-        plt.colorbar()
-        show()
+        px,py,pz = occup2image(occ_mat, image_type='projection',background_encoding=background_encoding) 
+        from rgbd_sym.tool.plt import plot_img
+        plot_img([[px,py,pz,depth_real]])
     del occ_mat
     s = depth_image.shape
     # imshow(z)
@@ -276,10 +274,12 @@ def local_depth_transform(depth_image, mask_dict,
     return z, z_mask
 
 
-def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsample=5, debug=False):
+def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, 
+                  K,
+                  depth_upsample=5, debug=False):
     _obs_depths = deepcopy(obs_depths)
     _obs_masks = deepcopy(obs_masks)
-    fov = 45
+    # fov = 45
     gripper_project_offset = 0.2 # gripper is z zero, so projection is not in FOV45, we need to somehow recover
     ws_scale = 0.08 
     x_offset = +0.00
@@ -307,7 +307,7 @@ def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsampl
     #     _depth[k] = np.ones(_obs_depth.shape, dtype=np.uint8)*255
     #     _depth[k][v] = np.median(_obs_depth[_obj_mask])
 
-    K = get_intrinsic_matrix(in_shape[0], in_shape[1], fov=fov)
+    # K = get_intrinsic_matrix(in_shape[0], in_shape[1], fov=fov)
     new_obs_depth = {}
     new_obs_masks = {}
     for k,v in _obs_depths.items():
@@ -328,22 +328,23 @@ def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, depth_upsampl
                                     occup_w=occup_w,
                                     occup_d=occup_d,
                                     background_encoding=255,
-                                    depth_upsample=depth_upsample)
+                                    depth_upsample=depth_upsample,
+                                    debug=debug)
 
         new_obs_depth[k] = depth_new
                     
         new_obs_masks[k] = mask_new
     
     if debug:
-        from matplotlib.pyplot import imshow, subplot, axis, cm, show
-        import matplotlib.pyplot as plt
-        imshow(mask_new)
-        plt.colorbar()
-        show()
+        from rgbd_sym.tool.plt import plot_img
+        img1 = [v for _,v in obs_masks.items()]
+        img2 = [v for _,v in new_obs_depth.items()]
+        img3 = [v for _,v in new_obs_masks.items()]
+        plot_img([img1,img2,img3])
 
     return new_obs_depth, new_obs_masks
 
-def traj_transform(start_obs, Ts,):
+def traj_transform(start_obs, Ts,K):
     current_trans_dict = {k: getT([0,0,0],[0,0,0],rot_type="euler") for k,v in Ts[0].items()}
     new_obss = []
     for i, transform_dict in enumerate(Ts):
@@ -354,6 +355,58 @@ def traj_transform(start_obs, Ts,):
         new_obs['depth'], new_obs['mask'] = obs_transform(start_obs['depth'], start_obs['mask'], current_trans_dict,
                                                         start_obs['depth']['gripper'].shape,
                                                         depth_upsample=6,
+                                                        K=K,
                                                         )
         new_obss.append(new_obs)
     return new_obss
+
+
+
+def action2transformdict(action, reverse=False):
+    transform_dict= {}
+    # 'dpos': 0.05, 'drot': np.pi/8
+    rot_scale = np.pi/8
+    transl_scale = 0.04 * 0.2
+    sign = -1 if reverse else 1
+    transform_dict['gripper'] = getT([0,0,0], [0,0,action[4]*sign*rot_scale], rot_type="euler", euler_Degrees=False)
+    transform_dict['object1'] = getT([-transl_scale*action[1]*sign,
+                                      -transl_scale*action[2]*sign,
+                                      -transl_scale*action[3]*sign,], 
+                                      [0,0,0], 
+                                     rot_type="euler")
+    transform_dict['object2'] = transform_dict['object1'].copy()
+    return transform_dict
+
+
+def local_sym_step(start_depth_dict, start_mask_dict, actions, K, reverse=False, depth_upsample=6, debug=False):
+    T_dict = None
+    depth_dict_traj = []
+    mask_dict_traj = []
+    actions = [np.zeros(5)] + actions
+    for action in actions:
+        delta_T_dict = action2transformdict(action, reverse=reverse)
+        if T_dict is None:
+            T_dict = delta_T_dict
+        else:
+            T_dict = {k: TxT([delta_T_dict[k], v]) for k,v in T_dict.items()}
+
+
+        _depth, _mask = obs_transform(start_depth_dict, start_mask_dict, T_dict,
+                                                        start_depth_dict['gripper'].shape,
+                                                        K=K,
+                                                        depth_upsample=depth_upsample,
+                                                        debug=debug
+                                                        )
+        depth_dict_traj.append(_depth)
+        mask_dict_traj.append(_mask)
+    
+    depth_image_traj = [get_depth_image_from_dict(_d) for _d in depth_dict_traj]
+    if reverse:
+        depth_image_traj = [v for v in reversed(depth_image_traj)]
+    return depth_image_traj
+
+def get_depth_image_from_dict(depth_dict):
+    depths = [v for k,v in depth_dict.items()]
+    new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
+    # new_obs_depth = np.uint8(new_obs_depth * 255)
+    return new_obs_depth

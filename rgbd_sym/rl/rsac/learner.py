@@ -31,7 +31,7 @@ from buffers_efficient.seq_vanilla import SeqBuffer as SeqBufferEff
 from buffers_efficient.seq_rot import SeqRotBuffer as SeqRotBufferEff
 from buffers_efficient.seq_per_rot import SeqPerRotBuffer as SeqPerRotBufferEff
 from rgbd_sym.rl.rsac.seq_rot_center import SeqRotBufferCenter
-from utils import helpers as utl
+from rgbd_sym.rl.rsac import helpers as utl
 from torchkit import pytorch_utils as ptu
 from utils import logger
 
@@ -129,10 +129,14 @@ class Learner:
         
             # self.train_env = gym.make(env_name, rendering=self.replay)
             from rgbd_sym.api import make_env
-            self.train_env, env_config = make_env(tags=['block_pull','no_obs_dict'], seed=self.seed)
+            if env_name == "BlockPulling-Symm-v0":
+                env_tag = ['block_pull']
+            else:
+                raise NotImplementedError
+            self.train_env, env_config = make_env(tags=env_tag, seed=self.seed)
             # self.train_env.seed = self.seed
             # self.train_env.action_space.np_random.seed(self.seed)  # crucial
-            self.eval_env, env_config = make_env(tags=['block_pull','no_obs_dict'], seed=self.seed + 1)
+            self.eval_env, env_config = make_env(tags=env_tag, seed=self.seed + 1)
             # self.eval_env = self.train_env
             # self.eval_env.seed(self.seed + 1)
 
@@ -580,8 +584,11 @@ class Learner:
         while (expert_ep_cnt < num_rollouts):
             steps = 0
 
-            obs = ptu.from_numpy(self.train_env.reset())  # reset
-
+            # obs = ptu.from_numpy(self.train_env.reset())  # reset
+            obs = self.train_env.reset()  # reset
+            obs = obs["image"]
+            obs = ptu.from_numpy(obs)
+            
             obs = obs.reshape(1, *obs.shape)
             done_rollout = False
 
@@ -677,7 +684,10 @@ class Learner:
         for idx in range(num_rollouts):
             steps = 0
 
-            obs = ptu.from_numpy(self.train_env.reset())  # reset
+            # obs = ptu.from_numpy(self.train_env.reset())  # reset
+            obs = self.train_env.reset() # reset
+            obs = obs['image']
+            obs = ptu.from_numpy(obs)
 
             obs = obs.reshape(1, *obs.shape)
 

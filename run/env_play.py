@@ -46,6 +46,7 @@ for _ in tqdm(range(args.repeat)):
         img = obs.copy()
         # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
         if isinstance(img, dict):
+            img.pop("image", None)
             img.pop("depth", None)
             img.pop("depthR", None)
             img.pop("imageR", None)
@@ -89,6 +90,7 @@ for _ in tqdm(range(args.repeat)):
         if isinstance(img, dict):
             print(img.keys())
             img["depth"] = get_depth_image(img["depth"])
+            img.pop("image", None)
             img.pop("imageR", None)
             img.pop("depthR", None)
         else:

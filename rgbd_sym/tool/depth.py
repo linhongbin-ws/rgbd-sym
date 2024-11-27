@@ -125,7 +125,7 @@ def pointclouds2occupancy(pc_mat, occup_h, occup_w, occup_d,
     # idx_x = scale_arr(_pc_mat[:,0],  pc_x_min, pc_x_max, 0, occup_h-1,)
     # idx_y = scale_arr(_pc_mat[:,1],  pc_y_min, pc_y_max, 0, occup_w-1,)
     # idx_z = scale_arr(_pc_mat[:,2],  pc_z_min, pc_z_max, 0, occup_d-1,)
-    print(_pc_mat.shape)
+    # print(_pc_mat.shape)
     if pc_x_min is None: pc_x_min=np.min(_pc_mat[:,0])
     if pc_x_max is None: pc_x_max=np.max(_pc_mat[:,0])
     if pc_y_min is None: pc_y_min=np.min(_pc_mat[:,1])

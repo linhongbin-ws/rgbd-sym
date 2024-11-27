@@ -1,5 +1,6 @@
 from buffers.seq_vanilla import SeqBuffer
-from rgbd_sym.tool.sym import get_random_transform_params, perturb
+# from rgbd_sym.tool.sym import get_random_transform_params, perturb
+from utils.helpers import get_random_transform_params, perturb
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
