@@ -8,8 +8,9 @@ from copy import deepcopy
 from matplotlib.pyplot import imshow, subplot, axis, cm, show
 import matplotlib.pyplot as plt
 # local sym dependency
-from rgbd_sym.tool.depth import get_intrinsic_matrix, depth_image_to_point_cloud, pointclouds2occupancy, occup2image,scale_K
-
+from rgbd_sym.tool.depth import get_intrinsic_matrix, pointclouds2occupancy, occup2image,scale_K
+# from rgbd_sym.tool.depth import depth_image_to_point_cloud
+from rgbd_sym.tool.o3d import depth_image_to_point_cloud
 def get_random_transform_params(image_size, trans_scale=1, rot_scale=1):
     theta = np.random.random() * 2 * np.pi
     trans = np.random.randint(0, image_size[0] // 10, 2) - image_size[0] // 20
@@ -281,17 +282,16 @@ def obs_transform(obs_depths, obs_masks, transform_dict, in_shape,
     _obs_masks = deepcopy(obs_masks)
     # fov = 45
     gripper_project_offset = 0.2 # gripper is z zero, so projection is not in FOV45, we need to somehow recover
-    ws_scale = 0.08 
+    ws_scale = 0.2
     x_offset = +0.00
     y_offset = -0.00
     z_offset = 0.06
-    z_scale=12
     pc_x_min=-ws_scale+x_offset
     pc_x_max=ws_scale+x_offset
     pc_y_min=-ws_scale+y_offset
     pc_y_max=ws_scale+y_offset
     pc_z_min=-ws_scale+z_offset
-    pc_z_max=ws_scale*z_scale+z_offset
+    pc_z_max=ws_scale+z_offset
     occup_h=84 
     occup_w=84 
     occup_d=84
@@ -366,12 +366,12 @@ def action2transformdict(action, reverse=False):
     transform_dict= {}
     # 'dpos': 0.05, 'drot': np.pi/8
     rot_scale = np.pi/8
-    transl_scale = 0.04 * 0.2
+    transl_scale = 0.05 * 0.27
     sign = -1 if reverse else 1
     transform_dict['gripper'] = getT([0,0,0], [0,0,action[4]*sign*rot_scale], rot_type="euler", euler_Degrees=False)
     transform_dict['object1'] = getT([-transl_scale*action[1]*sign,
                                       -transl_scale*action[2]*sign,
-                                      -transl_scale*action[3]*sign,], 
+                                      transl_scale*action[3]*sign,], 
                                       [0,0,0], 
                                      rot_type="euler")
     transform_dict['object2'] = transform_dict['object1'].copy()

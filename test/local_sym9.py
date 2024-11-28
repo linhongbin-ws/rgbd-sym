@@ -16,7 +16,7 @@ obs = env.reset()
 done = False
 
 import pybullet as pb
-proj_matrix = pb.computeProjectionMatrixFOV(fov=45,
+proj_matrix = pb.computeProjectionMatrixFOV(fov=70,
                                 aspect=1,
                                 nearVal=0.1,
                                 farVal=1)
@@ -28,14 +28,15 @@ K[1][1] = proj_matrix[1,1] * size /2
 K[2][2] = 1
 print("K", K)
 from rgbd_sym.tool.depth import get_intrinsic_matrix
-K2 = get_intrinsic_matrix(width=size,height=size, fov=45)
-print("K2", K)
+K2 = get_intrinsic_matrix(width=size,height=size, fov=70)
+print("K2", K2)
 
-action = np.array([0, 1.0, 0, 0, 0])
+action = np.array([1, 0.0, 0,-1.0, 0])
+steps = 3
 print(obs["image"].shape)
 imgs1 = [obs["image"]]
 imgs1_meta = [obs]
-for i in range(4):
+for i in range(steps):
     obs, reward, done, info = env.step(action)
     imgs1.append(obs["image"])
     imgs1_meta.append(obs)
@@ -45,14 +46,14 @@ for i in range(4):
 
 start_depth_dict = imgs1_meta[0]['depth']
 start_mask_dict = imgs1_meta[0]['mask']
-actions = [ np.array([0, 1.0, 0, 0, 0]) for i in range(4)]
+actions = [ action for i in range(steps)]
 depth_image_traj = local_sym_step(start_depth_dict, start_mask_dict, actions,K=K2)
 
 
 start_depth_dict = imgs1_meta[-1]['depth']
 start_mask_dict = imgs1_meta[-1]['mask']
-actions = [ np.array([0, 1.0, 0, 0, 0]) for i in range(4)]
-depth_image_traj2 = local_sym_step(start_depth_dict, start_mask_dict, actions, K=K2, reverse=True, depth_upsample=2, debug=True)
+actions = [ action for i in range(steps)]
+depth_image_traj2 = local_sym_step(start_depth_dict, start_mask_dict, actions, K=K2, reverse=True, debug=False)
 
 
 
@@ -63,7 +64,8 @@ imgs2 = depth_image_traj
 imgs3 = depth_image_traj2
 imgs4 = [im['mask']['object2']for im in imgs1_meta]
 imgs5 = [im['depthR']['object2']for im in imgs1_meta]
-aug_imgss = [imgs1, imgs2, imgs3,imgs4,imgs5]
+imgs6 = [im['rgb'] for im in imgs1_meta]
+aug_imgss = [imgs1, imgs2, imgs3,imgs4,imgs5,imgs6]
 
 use_backend('tkagg')
 plot_img(aug_imgss)

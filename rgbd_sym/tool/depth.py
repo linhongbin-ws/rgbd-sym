@@ -27,6 +27,28 @@ def write_point_cloud(ply_filename, points):
     ''' % (len(points), "".join(formatted_points)))
     out_file.close()
 
+def getPointCloud(self, depth_image, size, to_numpy=True):
+
+    # https://stackoverflow.com/questions/59128880/getting-world-coordinates-from-opengl-depth-buffer
+    projectionMatrix = np.asarray(self.proj_matrix).reshape([4,4],order='F')
+    viewMatrix = np.asarray(self.view_matrix).reshape([4,4],order='F')
+    tran_pix_world = np.linalg.inv(np.matmul(projectionMatrix, viewMatrix))
+    pixel_pos = np.mgrid[0:size, 0:size]
+    pixel_pos = pixel_pos/(size/2) - 1
+    pixel_pos = np.moveaxis(pixel_pos, 1, 2)
+    pixel_pos[1] = -pixel_pos[1]
+    zs = 2*depth_image.reshape(1, size, size) - 1
+    pixel_pos = np.concatenate((pixel_pos, zs))
+    pixel_pos = pixel_pos.reshape(3, -1)
+    augment = np.ones((1, pixel_pos.shape[1]))
+    pixel_pos = np.concatenate((pixel_pos, augment), axis=0)
+    position = np.matmul(tran_pix_world, pixel_pos)
+    pc = position / position[3]
+    points = pc.T[:, :3]
+
+    # if to_numpy:
+        # points = np.asnumpy(points)
+    return points
 
 def depth_image_to_point_cloud(rgb, depth, scale, K, pose, encode_mask=None, tolist=True):
 
@@ -41,7 +63,7 @@ def depth_image_to_point_cloud(rgb, depth, scale, K, pose, encode_mask=None, tol
     X = np.ravel(X)
     Y = np.ravel(Y)
     Z = np.ravel(Z)
-    valid = Z > 0
+    valid = Z > -10000
     X = X[valid]
     Y = Y[valid]
     Z = Z[valid]
