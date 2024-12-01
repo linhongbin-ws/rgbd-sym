@@ -128,6 +128,15 @@ def get_intrinsic_matrix(width, height, fov, degrees=True):
                     [0.0, 0.0, 1.0]]).astype(np.float)
     return mat
 
+def projection_matrix_to_K(p, image_size):
+    K = np.zeros((3,3))
+    K[0][0] = p[0][0] * image_size /2
+    K[1][1] = p[1][1] * image_size /2
+    K[0][2] =image_size /2
+    K[1][2] =image_size /2
+    K[2][2] = 1
+    return K
+
 def scale_K(K, width_scale, height_scale):
     _K = K.copy()
     _K[0,0] = _K[0,0]* width_scale

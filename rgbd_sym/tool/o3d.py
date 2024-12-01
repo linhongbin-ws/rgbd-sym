@@ -37,3 +37,52 @@ def depth_image_to_point_cloud( rgb, depth_real, scale, new_K, pose, encode_mask
     if tolist:
         mat = mat.tolist()
     return mat
+
+def pointclouds2occupancy(pc_mat,
+                        occup_h,
+                        occup_w,
+                        occup_d,
+                        pc_x_min,
+                        pc_x_max,
+                        pc_y_min,
+                        pc_y_max,
+                        pc_z_min,
+                        pc_z_max,
+                          ):
+    range_ = pc_x_max - pc_x_min
+    resolution = occup_h
+    pc_x_max = pc_x_min + range_
+    pc_y_max = pc_y_min + range_
+    pc_z_max = pc_z_min + range_
+    min_bound = np.array([pc_x_min,pc_y_min,pc_z_min]).reshape(3,1)
+    max_bound = np.array([pc_x_max,pc_y_max,pc_z_max]).reshape(3,1)
+
+
+    voxel_size = range_ / resolution
+    _pc_mat = pc_mat.copy()
+    _pc_mat = _pc_mat[_pc_mat[:,0] >= pc_x_min]
+    _pc_mat = _pc_mat[_pc_mat[:,1] >= pc_y_min]
+    _pc_mat = _pc_mat[_pc_mat[:,2] >= pc_z_min]
+    _pc_mat = _pc_mat[_pc_mat[:,0] <= pc_x_max]
+    _pc_mat = _pc_mat[_pc_mat[:,1] <= pc_y_max]
+    _pc_mat = _pc_mat[_pc_mat[:,2] <= pc_z_max]
+    # print(pc_x_min,pc_y_min,pc_z_min,pc_x_max,pc_y_max,pc_z_max)
+    # print(_pc_mat.shape)
+
+    pointSet = o3d.geometry.PointCloud()
+    pointSet.points = o3d.utility.Vector3dVector(_pc_mat[:,:3])
+    pointSet.colors = o3d.utility.Vector3dVector(_pc_mat[:,3:6])
+    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud_within_bounds(pointSet, 
+                                          voxel_size, 
+                                          min_bound, 
+                                          max_bound)
+    # o3d.visualization.draw_geometries([voxel_grid])
+    vx = voxel_grid.get_voxels()
+    # print(vx)
+    vx_idx = [v.grid_index for v in vx]
+    occ_mat = np.zeros((resolution, resolution, resolution), dtype=bool)
+    # print(len(vx_idx))
+    for i in vx_idx:
+        # print(i)
+        occ_mat[i[0],i[1],i[2]] = True
+    return occ_mat

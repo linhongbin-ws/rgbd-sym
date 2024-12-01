@@ -8,9 +8,11 @@ from copy import deepcopy
 from matplotlib.pyplot import imshow, subplot, axis, cm, show
 import matplotlib.pyplot as plt
 # local sym dependency
-from rgbd_sym.tool.depth import get_intrinsic_matrix, pointclouds2occupancy, occup2image,scale_K
+from rgbd_sym.tool.depth import get_intrinsic_matrix, occup2image,scale_K
 # from rgbd_sym.tool.depth import depth_image_to_point_cloud
+# from rgbd_sym.tool.depth import pointclouds2occupancy
 from rgbd_sym.tool.o3d import depth_image_to_point_cloud
+from rgbd_sym.tool.o3d import pointclouds2occupancy
 def get_random_transform_params(image_size, trans_scale=1, rot_scale=1):
     theta = np.random.random() * 2 * np.pi
     trans = np.random.randint(0, image_size[0] // 10, 2) - image_size[0] // 20
@@ -224,6 +226,7 @@ def local_depth_transform(depth_image, mask_dict,
     points = depth_image_to_point_cloud(
         rgb, depth_real, scale, new_K, pose, encode_mask=encode_mask, tolist=False
     )
+    print("point range", np.min(points[:,:3], axis=0),np.max(points[:,:3], axis=0,))
     if 'gripper' in _mask_dict:
         points[points[:,6] == encode_id['gripper'] ,2] -=  gripper_project_offset # recover gripper depth from offset to zero.
     # print(np.unique(points[:, 6]))
@@ -281,11 +284,11 @@ def obs_transform(obs_depths, obs_masks, transform_dict, in_shape,
     _obs_depths = deepcopy(obs_depths)
     _obs_masks = deepcopy(obs_masks)
     # fov = 45
-    gripper_project_offset = 0.2 # gripper is z zero, so projection is not in FOV45, we need to somehow recover
-    ws_scale = 0.2
+    gripper_project_offset = 0.0 # gripper is z zero, so projection is not in FOV45, we need to somehow recover
+    ws_scale = 0.5
     x_offset = +0.00
     y_offset = -0.00
-    z_offset = 0.06
+    z_offset = 0.5
     pc_x_min=-ws_scale+x_offset
     pc_x_max=ws_scale+x_offset
     pc_y_min=-ws_scale+y_offset
