@@ -7,409 +7,221 @@ from scipy.ndimage import affine_transform
 from copy import deepcopy
 from matplotlib.pyplot import imshow, subplot, axis, cm, show
 import matplotlib.pyplot as plt
-# local sym dependency
-from rgbd_sym.tool.depth import get_intrinsic_matrix, occup2image,scale_K
+from rgbd_sym.tool.depth import get_intrinsic_matrix, occup2image, scale_K
 # from rgbd_sym.tool.depth import depth_image_to_point_cloud
 # from rgbd_sym.tool.depth import pointclouds2occupancy
 from rgbd_sym.tool.o3d import depth_image_to_point_cloud
 from rgbd_sym.tool.o3d import pointclouds2occupancy
-def get_random_transform_params(image_size, trans_scale=1, rot_scale=1):
-    theta = np.random.random() * 2 * np.pi
-    trans = np.random.randint(0, image_size[0] // 10, 2) - image_size[0] // 20
-    pivot = (image_size[1] / 2, image_size[0] / 2)
-    trans = trans_scale * trans
-    theta = rot_scale * theta
-    return theta, trans, pivot
 
 
-def get_image_transform(theta, trans, pivot=(0, 0)):
-    """Compute composite 2D rigid transformation matrix."""
-    # Get 2D rigid transformation matrix that rotates an image by theta (in
-    # radians) around pivot (in pixels) and translates by trans vector (in
-    # pixels)
-    pivot_t_image = np.array(
-        [[1.0, 0.0, -pivot[0]], [0.0, 1.0, -pivot[1]], [0.0, 0.0, 1.0]]
-    )
-    image_t_pivot = np.array(
-        [[1.0, 0.0, pivot[0]], [0.0, 1.0, pivot[1]], [0.0, 0.0, 1.0]]
-    )
-    transform = np.array(
-        [
-            [np.cos(theta), -np.sin(theta), trans[0]],
-            [np.sin(theta), np.cos(theta), trans[1]],
-            [0.0, 0.0, 1.0],
-        ]
-    )
-    return np.dot(image_t_pivot, np.dot(transform, pivot_t_image))
-
-
-def perturb(
-    current_image,
-    next_image,
-    action,
-    theta,
-    trans,
-    pivot,
-    set_theta_zero=False,
-    set_trans_zero=False,
-    action_only=False,
-):
-    """Perturn an image for data augmentation"""
-
-    # image_size = current_image.shape[-2:]
-
-    # Compute random rigid transform.
-    # theta, trans, pivot = get_random_transform_params(image_size)
-
-    dxy = action[1:3]
-
-    if set_theta_zero:
-        theta = 0.0
-    if set_trans_zero:
-        trans = [0.0, 0.0]
-    # transform = get_image_transform(theta, trans, pivot)
-
-    transform_params = theta, trans, pivot
-
-    rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-    if dxy is not None:
-        rotated_dxy = rot.T.dot(dxy) # transpose, fix bug of action roation
-        rotated_dxy = np.clip(rotated_dxy, -1, 1)
-    else:
-        rotated_dxy = None
-    # Apply rigid transform to image and pixel labels.
-    p = np.array(pivot)
-    # print(pivot)
-    offset = p - p.dot(rot)
-    s = current_image.shape
-    if not action_only:
-        image_list = []
-        for i in range(s[2]):
-            image_list.append(affine_transform(
-                current_image[:,:,i],
-                rot.T,
-                mode="nearest",
-                offset=offset,
-                order=1,
-                output_shape=(s[0], s[1]),
-                output=np.uint8,
-            ))
-        current_image = np.stack(image_list, axis=2)
-        if next_image is not None:
-            image_list = []
-            for i in range(s[2]):
-                image_list.append(
-                    affine_transform(
-                        next_image[:, :, i],
-                        rot.T,
-                        mode="nearest",
-                        offset=offset,
-                        order=1,
-                        output_shape=(s[0], s[1]),
-                        output=np.uint8,
-                    )
-                )
-            next_image = np.stack(image_list, axis=2)
-    new_action = action.copy()
-    new_action[1:3] = rotated_dxy
-    return current_image, next_image, new_action, transform_params
-
-
-# def RGBDTransform(rgb, depth_real, fx, fy, cx,cy, Ts=[]):
-#     assert len(Ts)!=0
-#     height, width , channel = rgb.shape[0], rgb.shape[1],rgb.shape[2]
-#     zs = depth_real.copy().reshape(-1)
-#     rs = rgb[:,:,0].copy().reshape(-1)
-#     gs = rgb[:,:,1].copy().reshape(-1)
-#     bs = rgb[:,:,2].copy().reshape(-1)
-#     rgb_u = np.stack(width*[np.arange(width)], axis=1)
-#     rgb_v = np.stack(height*[np.arange(height)], axis=0)
-#     rgb_u_arr = rgb_u.reshape(-1)
-#     rgb_v_arr = rgb_v.reshape(-1)
-#     xs = np.multiply((rgb_u_arr - cy) / (fx),  zs)
-#     ys = np.multiply((rgb_v_arr - cx) / (fy),  zs)
-    
-#     new_rgbs = []
-#     for T in Ts:
-#         assert T.shape[0]==4 and  T.shape[1]==4
-#         xyz = np.stack([xs,ys,zs, np.ones(xs.shape)], axis=0)
-#         print(T.shape, xyz.shape)
-#         new_xyz = np.matmul(T , xyz)
-#         new_x = new_xyz[0,:]
-#         new_y = new_xyz[1,:]
-#         new_z = new_xyz[2,:]
-#         print(fx * np.divide(new_x, new_z) + cy)
-#         new_us = fx * np.divide(new_x, new_z) + cy
-#         new_vs = fy * np.divide(new_y, new_z) + cx
-#         new_us = np.around(new_us).astype(np.int)
-#         new_vs = np.around(new_vs).astype(np.int)
-
-#         new_us = new_us.reshape(-1)
-#         new_vs = new_vs.reshape(-1)
-#         new_rgb = np.zeros(( width, height, channel,),dtype=np.uint8)
-#         new_depth = -np.ones(( width, height,),dtype=np.float)
-#         for i in range(new_us.shape[0]):
-#             u = new_us[i]
-#             v = new_vs[i]
-#             if (u<0) or (u>width-1): continue
-#             if (v<0) or (v>height-1): continue
-#             if new_depth[u,v] >= zs[i]: continue
-
-#             new_rgb[u,v,0] = rs[i]
-#             new_rgb[u,v,1] = gs[i]
-#             new_rgb[u,v,2] = bs[i]
-#         new_rgbs.append(new_rgb)
-#     return new_rgbs
-
-
-
-
-def local_depth_transform(depth_image, mask_dict, 
+def local_depth_transform(depth_image, mask_dict,
                           K, depth_real_min, depth_real_max,
-                           gripper_project_offset,
-                           transform_dict,
-                            pc_x_min,
-                            pc_x_max,
-                            pc_y_min,
-                            pc_y_max,
-                            pc_z_min,
-                            pc_z_max,
-                            occup_h,
-                            occup_w,
-                            occup_d,
-                            background_encoding=255,
-                            depth_upsample=1,
-                            debug=False,
-                           ):
-    depth = cv2.resize(depth_image, 
-                       (int(depth_image.shape[0]*depth_upsample), 
+                          transform_dict,
+                          pc_x_center,
+                          pc_y_center,
+                          pc_z_center,
+                          pc_range,
+                          voxel_res,
+                          out_image_type='depth',
+                          out_background_encoding=255,
+                          depth_upsample=1,
+                          debug=False,
+                          ):
+    depth = cv2.resize(depth_image,
+                       (int(depth_image.shape[0]*depth_upsample),
                         int(depth_image.shape[1]*depth_upsample),),
-                           interpolation=cv2.INTER_NEAREST)
-    _mask_dict = {k: bool_resize(v, depth.shape, reverse=True) for k,v in mask_dict.items()}
-
-    # imshow(depth)
-    # plt.colorbar()
-    # show()
-    depth_real = scale_arr(np.float32(depth), 0, 255, depth_real_min, depth_real_max) # depth image to depth
-    # imshow(depth_real)
-    # plt.colorbar()
-    # show()
-    # imshow(_mask_dict['gripper'])
-    # plt.colorbar()
-    # show()
-    if 'gripper' in _mask_dict:
-        depth_real[_mask_dict['gripper']] +=gripper_project_offset # gripper is depth zero, so we need to offset it in a camera view, otherwise the gripper shape is weird 
+                       interpolation=cv2.INTER_NEAREST)
+    _mask_dict = {k: bool_resize(v, depth.shape, reverse=True)
+                  for k, v in mask_dict.items()}
+    depth_real = scale_arr(np.float32(
+        depth), 0, 255, depth_real_min, depth_real_max)  # depth image to depth
     encode_mask = np.zeros(depth.shape, dtype=np.uint8)
 
-    # imshow(depth_real)
-    # plt.colorbar()
-    # show()
     masks = []
     encode_id = {}
     m_id = 0
-    for k,v in _mask_dict.items():
-        m_id+=1
+    for k, v in _mask_dict.items():
+        m_id += 1
         masks.append(k)
         encode = m_id
-        encode_mask[v] =encode
+        encode_mask[v] = encode  # background 0, other mask key 1, 2, 3 ...
         encode_id[k] = encode
-    # for m_id, m in enumerate(masks):
-    #     encode_mask[m] = m_id + 1 # background 0, other mask key 1, 2, 3 ...
-    
 
     scale = 1
     pose = np.eye(4)
-    rgb = np.zeros(depth.shape + (3,),dtype=np.uint8)
-    new_K = scale_K(K, 
-                    depth.shape[0]/depth_image.shape[0],  
+    rgb = np.zeros(depth.shape + (3,), dtype=np.uint8)
+    new_K = scale_K(K,
+                    depth.shape[0]/depth_image.shape[0],
                     depth.shape[1]/depth_image.shape[1], )
     points = depth_image_to_point_cloud(
         rgb, depth_real, scale, new_K, pose, encode_mask=encode_mask, tolist=False
     )
-    print("point range", np.min(points[:,:3], axis=0),np.max(points[:,:3], axis=0,))
-    if 'gripper' in _mask_dict:
-        points[points[:,6] == encode_id['gripper'] ,2] -=  gripper_project_offset # recover gripper depth from offset to zero.
-    # print(np.unique(points[:, 6]))
+    # print("point range", np.min(points[:,:3], axis=0),np.max(points[:,:3], axis=0,))
 
-    for k,v in transform_dict.items():
-        pc_idx = points[:,6] == encode_id[k] 
-        ones = np.ones((points[pc_idx,:].shape[0], 1))
+    for k, v in transform_dict.items():
+        pc_idx = points[:, 6] == encode_id[k]
+        ones = np.ones((points[pc_idx, :].shape[0], 1))
         P = np.concatenate((points[pc_idx, :3], ones), axis=1)
-        points[pc_idx, :3] = np.matmul(P,np.transpose(v))[:, :3]
-                
-    # T1 = getT([0, 0, -0.2 * 5], [0, 0, 0], rot_type="euler")
-    # T2 = getT([0, 0, 0], [-45, 0, 0], rot_type="euler", euler_Degrees=True)
-    # ones = np.ones((points.shape[0], 1))
-    # P = np.concatenate((points[:, :3], ones), axis=1)
-    # points[:, :3] = np.matmul(P,np.transpose(TxT([T2,T1,])))[:, :3]
-    # images = []
-    # new_depth = np.zeros(depth.shape, dtype=np.uint8)
-    # for m_id, _ in enumerate(masks):
-    #     # print(np.unique(points[:, 6]))
-    #     _points = points[points[:, 6] == m_id + 1]  # mask out
-    #     if len(_points) == 0:
-    #         print("skip mask",m_id + 1)
-    #         continue
-    points = points[points[:,6] != 0, :] # remove background
+        points[pc_idx, :3] = np.matmul(P, np.transpose(v))[:, :3]
+
+    points = points[points[:, 6] != 0, :]  # remove background
     occ_mat = pointclouds2occupancy(
         points,
-        occup_h=occup_h,
-        occup_w=occup_w,
-        occup_d=occup_d,
-        pc_x_min=pc_x_min,
-        pc_x_max=pc_x_max,
-        pc_y_min=pc_y_min,
-        pc_y_max=pc_y_max,
-        pc_z_min=pc_z_min,
-        pc_z_max=pc_z_max,
+        occup_h=voxel_res,
+        occup_w=voxel_res,
+        occup_d=voxel_res,
+        pc_x_min=pc_x_center - pc_range/2,
+        pc_x_max=pc_x_center + pc_range/2,
+        pc_y_min=pc_y_center - pc_range/2,
+        pc_y_max=pc_y_center + pc_range/2,
+        pc_z_min=pc_z_center - pc_range/2,
+        pc_z_max=pc_z_center + pc_range/2,
     )
-    z, z_mask = occup2image(occ_mat, image_type='depth',background_encoding=background_encoding) 
+    z, z_mask = occup2image(occ_mat, image_type=out_image_type,
+                            background_encoding=out_background_encoding)
     if debug:
-        px,py,pz = occup2image(occ_mat, image_type='projection',background_encoding=background_encoding) 
+        px, py, pz = occup2image(
+            occ_mat, image_type='projection', background_encoding=out_background_encoding)
         from rgbd_sym.tool.plt import plot_img
-        plot_img([[px,py,pz,depth_real]])
+        plot_img([[px, py, pz, depth_real]])
     del occ_mat
     s = depth_image.shape
-    # imshow(z)
-    # show()
-    z = cv2.resize(z, (s[0], s[1]),interpolation=cv2.INTER_NEAREST)
-    z_mask = bool_resize(z_mask, (s[0], s[1]),method=cv2.INTER_NEAREST,reverse=True)
-
+    z = cv2.resize(z, (s[0], s[1]), interpolation=cv2.INTER_NEAREST)
+    z_mask = bool_resize(z_mask, (s[0], s[1]),
+                         method=cv2.INTER_NEAREST, reverse=True)
     return z, z_mask
 
 
-def obs_transform(obs_depths, obs_masks, transform_dict, in_shape, 
+def obs_transform(obs_depths, 
+                  obs_masks, 
+                  transform_dict,
                   K,
-                  depth_upsample=5, debug=False):
+                  pc_x_center,
+                  pc_y_center,
+                  pc_z_center,
+                  pc_range,
+                  voxel_res,
+                  depth_real_min,
+                  depth_real_max,
+                  depth_upsample, 
+                  out_image_type,
+                  out_background_encoding,
+                  debug=False,
+                  ):
     _obs_depths = deepcopy(obs_depths)
     _obs_masks = deepcopy(obs_masks)
-    # fov = 45
-    gripper_project_offset = 0.0 # gripper is z zero, so projection is not in FOV45, we need to somehow recover
-    ws_scale = 0.5
-    x_offset = +0.00
-    y_offset = -0.00
-    z_offset = 0.5
-    pc_x_min=-ws_scale+x_offset
-    pc_x_max=ws_scale+x_offset
-    pc_y_min=-ws_scale+y_offset
-    pc_y_max=ws_scale+y_offset
-    pc_z_min=-ws_scale+z_offset
-    pc_z_max=ws_scale+z_offset
-    occup_h=84 
-    occup_w=84 
-    occup_d=84
-    
-
-    # _depth = {}
-    # for k,v in _obs_masks.items():
-    #     union_mask = None
-    #     for mask_k, mask_v in _obs_masks.items():
-    #         if mask_k!=k:
-    #             union_mask = mask_v if union_mask is None else np.logical_or(union_mask,mask_v)
-    #     _obj_mask = np.logical_and(v,np.logical_not(union_mask))
-    #     _depth[k] = np.ones(_obs_depth.shape, dtype=np.uint8)*255
-    #     _depth[k][v] = np.median(_obs_depth[_obj_mask])
-
-    # K = get_intrinsic_matrix(in_shape[0], in_shape[1], fov=fov)
     new_obs_depth = {}
     new_obs_masks = {}
-    for k,v in _obs_depths.items():
-        depth_new, mask_new =  local_depth_transform(v,
-                                mask_dict={k:_obs_masks[k]}, 
-                                transform_dict={k: transform_dict[k]},
-                                K=K, 
-                                depth_real_min=0, 
-                                depth_real_max=1,
-                                gripper_project_offset=gripper_project_offset,
-                                    pc_x_min=pc_x_min,
-                                    pc_x_max=pc_x_max,
-                                    pc_y_min=pc_y_min,
-                                    pc_y_max=pc_y_max,
-                                    pc_z_min=pc_z_min,
-                                    pc_z_max=pc_z_max,
-                                    occup_h=occup_h,
-                                    occup_w=occup_w,
-                                    occup_d=occup_d,
-                                    background_encoding=255,
-                                    depth_upsample=depth_upsample,
-                                    debug=debug)
+    for k, v in _obs_depths.items():
+        depth_new, mask_new = local_depth_transform(v,
+                                                    mask_dict={
+                                                        k: _obs_masks[k]},
+                                                    transform_dict={
+                                                        k: transform_dict[k]},
+                                                    K=K,
+                                                    depth_real_min=depth_real_min,
+                                                    depth_real_max=depth_real_max,
+                                                    pc_x_center=pc_x_center,
+                                                    pc_y_center=pc_y_center,
+                                                    pc_z_center=pc_z_center,
+                                                    pc_range=pc_range,
+                                                    voxel_res=voxel_res,
+                                                    out_image_type=out_image_type,
+                                                    out_background_encoding=out_background_encoding,
+                                                    depth_upsample=depth_upsample,
+                                                    debug=debug)
 
         new_obs_depth[k] = depth_new
-                    
         new_obs_masks[k] = mask_new
-    
+
     if debug:
         from rgbd_sym.tool.plt import plot_img
-        img1 = [v for _,v in obs_masks.items()]
-        img2 = [v for _,v in new_obs_depth.items()]
-        img3 = [v for _,v in new_obs_masks.items()]
-        plot_img([img1,img2,img3])
+        img1 = [v for _, v in obs_masks.items()]
+        img2 = [v for _, v in new_obs_depth.items()]
+        img3 = [v for _, v in new_obs_masks.items()]
+        plot_img([img1, img2, img3])
 
     return new_obs_depth, new_obs_masks
 
-def traj_transform(start_obs, Ts,K):
-    current_trans_dict = {k: getT([0,0,0],[0,0,0],rot_type="euler") for k,v in Ts[0].items()}
-    new_obss = []
-    for i, transform_dict in enumerate(Ts):
-        new_obs = deepcopy(start_obs)
-        for _k, _v in transform_dict.items():
-            current_trans_dict[_k] = TxT([_v, current_trans_dict[_k]])
 
-        new_obs['depth'], new_obs['mask'] = obs_transform(start_obs['depth'], start_obs['mask'], current_trans_dict,
-                                                        start_obs['depth']['gripper'].shape,
-                                                        depth_upsample=6,
-                                                        K=K,
-                                                        )
-        new_obss.append(new_obs)
-    return new_obss
-
-
-
-def action2transformdict(action, reverse=False):
-    transform_dict= {}
+def action2transformdict(action, delta_pos, delta_rot, reverse=False, ):
+    transform_dict = {}
     # 'dpos': 0.05, 'drot': np.pi/8
-    rot_scale = np.pi/8
-    transl_scale = 0.05 * 0.27
+    # rot_scale = np.pi/8
+    # transl_scale = 0.05 * 0.27
     sign = -1 if reverse else 1
-    transform_dict['gripper'] = getT([0,0,0], [0,0,action[4]*sign*rot_scale], rot_type="euler", euler_Degrees=False)
-    transform_dict['object1'] = getT([-transl_scale*action[1]*sign,
-                                      -transl_scale*action[2]*sign,
-                                      transl_scale*action[3]*sign,], 
-                                      [0,0,0], 
+    transform_dict['gripper'] = getT(
+        [0, 0, 0], [0, 0, action[4]*sign*delta_rot], rot_type="euler", euler_Degrees=False)
+    transform_dict['object1'] = getT([-delta_pos*action[1]*sign,
+                                      -delta_pos*action[2]*sign,
+                                      delta_pos*action[3]*sign,],
+                                     [0, 0, 0],
                                      rot_type="euler")
     transform_dict['object2'] = transform_dict['object1'].copy()
     return transform_dict
 
 
-def local_sym_step(start_depth_dict, start_mask_dict, actions, K, reverse=False, depth_upsample=6, debug=False):
+def local_sym_step(start_depth_dict,
+                   start_mask_dict,
+                   actions,
+                   K,
+                   action_delta_pos,
+                   action_delta_rot,
+                   pc_x_center,
+                   pc_y_center,
+                   pc_z_center,
+                   pc_range,
+                   voxel_res,
+                   depth_real_min,
+                   depth_real_max,
+                   depth_upsample=6,
+                   out_image_type='depth',
+                   out_background_encoding=255,
+                   reverse=False,
+                   debug=False):
     T_dict = None
     depth_dict_traj = []
     mask_dict_traj = []
-    actions = [np.zeros(5)] + actions
-    for action in actions:
-        delta_T_dict = action2transformdict(action, reverse=reverse)
+    
+    _actions = [v for v in reversed(actions)] if reverse else actions
+    _actions = [np.zeros(5)] + _actions
+    for action in _actions:
+        delta_T_dict = action2transformdict(action,
+                                            reverse=reverse,
+                                            delta_pos=action_delta_pos,
+                                            delta_rot=action_delta_rot)
         if T_dict is None:
             T_dict = delta_T_dict
         else:
-            T_dict = {k: TxT([delta_T_dict[k], v]) for k,v in T_dict.items()}
+            T_dict = {k: TxT([delta_T_dict[k], v]) for k, v in T_dict.items()}
 
-
-        _depth, _mask = obs_transform(start_depth_dict, start_mask_dict, T_dict,
-                                                        start_depth_dict['gripper'].shape,
-                                                        K=K,
-                                                        depth_upsample=depth_upsample,
-                                                        debug=debug
-                                                        )
+        _depth, _mask = obs_transform(start_depth_dict,
+                                      start_mask_dict,
+                                      T_dict,
+                                      K=K,
+                                      pc_x_center=pc_x_center,
+                                      pc_y_center=pc_y_center,
+                                      pc_z_center=pc_z_center,
+                                      pc_range=pc_range,
+                                      voxel_res=voxel_res,
+                                      depth_real_min=depth_real_min,
+                                      depth_real_max=depth_real_max,
+                                      depth_upsample=depth_upsample,
+                                      out_image_type=out_image_type,
+                                      out_background_encoding=out_background_encoding,
+                                      debug=debug
+                                      )
         depth_dict_traj.append(_depth)
         mask_dict_traj.append(_mask)
-    
-    depth_image_traj = [get_depth_image_from_dict(_d) for _d in depth_dict_traj]
+
+    depth_image_traj = [get_depth_image_from_dict(
+        _d) for _d in depth_dict_traj]
     if reverse:
         depth_image_traj = [v for v in reversed(depth_image_traj)]
     return depth_image_traj
 
+
 def get_depth_image_from_dict(depth_dict):
-    depths = [v for k,v in depth_dict.items()]
+    depths = [v for k, v in depth_dict.items()]
     new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
-    # new_obs_depth = np.uint8(new_obs_depth * 255)
     return new_obs_depth
