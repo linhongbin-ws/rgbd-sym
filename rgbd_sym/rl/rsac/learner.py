@@ -134,6 +134,11 @@ class Learner:
             else:
                 raise NotImplementedError
             self.train_env, env_config = make_env(tags=env_tag, seed=self.seed)
+            from rgbd_sym.tool.sym import get_sym_params
+            self.sym_args = get_sym_params(env_name="block_pull")
+            self.sym_args['K'] = self.train_env.unwrapped.instrinsic_K
+            self.sym_args['sym_step_idx'] = 5
+
             # self.train_env.seed = self.seed
             # self.train_env.action_space.np_random.seed(self.seed)  # crucial
             self.eval_env, env_config = make_env(tags=env_tag, seed=self.seed + 1)
@@ -585,8 +590,10 @@ class Learner:
             steps = 0
 
             # obs = ptu.from_numpy(self.train_env.reset())  # reset
-            obs = self.train_env.reset()  # reset
-            obs = obs["image"]
+            obs_dicts = []
+            obs_dict = self.train_env.reset()  # reset
+            obs_dicts.append(obs_dict)
+            obs = obs_dict["image"]
             obs = ptu.from_numpy(obs)
             
             obs = obs.reshape(1, *obs.shape)
@@ -617,9 +624,10 @@ class Learner:
                     ).float()  # (1, A)
 
                 # observe reward and next obs (B=1, dim)
-                next_obs, reward, done, info = utl.env_step(
+                next_obs, reward, done, info, next_obs_dict = utl.env_step(
                     self.train_env, action.squeeze(dim=0)
                 )
+                obs_dicts.append(next_obs_dict)
 
                 done_rollout = False if ptu.get_numpy(done[0][0]) == 0.0 else True
                 # update statistics
@@ -663,6 +671,8 @@ class Learner:
                             torch.cat(next_obs_list, dim=0)
                         ),  # (L, dim)
                         expert_masks=np.ones_like(term_list).reshape(-1, 1),  # (L, 1)
+                        obs_dicts = obs_dicts,
+                        sym_args=self.sym_args,
                     )
 
                     print(
@@ -685,8 +695,10 @@ class Learner:
             steps = 0
 
             # obs = ptu.from_numpy(self.train_env.reset())  # reset
-            obs = self.train_env.reset() # reset
-            obs = obs['image']
+            obs_dict = self.train_env.reset() # reset
+            obs_dicts = []
+            obs_dicts.append(obs_dict)
+            obs = obs_dict['image']
             obs = ptu.from_numpy(obs)
 
             obs = obs.reshape(1, *obs.shape)
@@ -695,7 +707,8 @@ class Learner:
 
             if self.agent_arch in [AGENT_ARCHS.Memory]:
                 # temporary storage
-                obs_list, act_list, rew_list, next_obs_list, term_list = (
+                obs_list, act_list, rew_list, next_obs_list, term_list, obs_dict_list = (
+                    [],
                     [],
                     [],
                     [],
@@ -732,9 +745,10 @@ class Learner:
                         action, _, _, _ = self.agent.act(obs, deterministic=False)
 
                 # observe reward and next obs (B=1, dim)
-                next_obs, reward, done, info = utl.env_step(
+                next_obs, reward, done, info, next_obs_dict = utl.env_step(
                     self.train_env, action.squeeze(dim=0)
                 )
+                obs_dicts.append(next_obs_dict)
                 if self.replay:
                     time.sleep(0.1)
 
@@ -765,6 +779,7 @@ class Learner:
                         reward=ptu.get_numpy(reward.squeeze(dim=0)),
                         terminal=np.array([term], dtype=float),
                         next_observation=ptu.get_numpy(next_obs.squeeze(dim=0)),
+                        obs_dicts = obs_dicts,
                     )
                 else:  # append tensors to temporary storage
                     obs_list.append(obs)  # (1, dim)
@@ -772,6 +787,7 @@ class Learner:
                     rew_list.append(reward)  # (1, dim)
                     term_list.append(term)  # bool
                     next_obs_list.append(next_obs)  # (1, dim)
+                    obs_dict_list.append(obs_dicts)
 
                 # set: obs <- next_obs
                 obs = next_obs.clone()
@@ -793,6 +809,9 @@ class Learner:
                         torch.cat(next_obs_list, dim=0)
                     ),  # (L, dim)
                     expert_masks=np.zeros_like(term_list).reshape(-1, 1),  # (L, 1)
+                    obs_dicts = obs_dicts,
+                    sym_args=self.sym_args,
+                    sym=False,
                 )
 
                 if success:
@@ -861,7 +880,10 @@ class Learner:
         for task_idx, task in enumerate(tasks):
             step = 0
 
-            obs = ptu.from_numpy(self.eval_env.reset())  # reset
+            # obs = ptu.from_numpy(self.eval_env.reset())  # reset
+            obs_dict = self.eval_env.reset()  # reset
+            obs = obs_dict["image"]
+            obs = ptu.from_numpy(obs)
 
             obs = obs.reshape(1, *obs.shape)
 
@@ -889,7 +911,7 @@ class Learner:
                         )
 
                     # observe reward and next obs
-                    next_obs, reward, done, info = utl.env_step(
+                    next_obs, reward, done, info, next_obs_dict = utl.env_step(
                         self.eval_env, action.squeeze(dim=0)
                     )
 

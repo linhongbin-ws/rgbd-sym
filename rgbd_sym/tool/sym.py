@@ -12,6 +12,29 @@ from rgbd_sym.tool.depth import get_intrinsic_matrix, occup2image, scale_K
 # from rgbd_sym.tool.depth import pointclouds2occupancy
 from rgbd_sym.tool.o3d import depth_image_to_point_cloud
 from rgbd_sym.tool.o3d import pointclouds2occupancy
+from copy import deepcopy
+
+
+def get_sym_params(env_name):
+    if env_name == "block_pull":
+        params = {}
+        params['action_delta_pos'] = 0.05
+        params['action_delta_rot'] = np.pi / 8
+        params['pc_x_center'] = 0.0
+        params['pc_y_center'] = 0.0
+        params['pc_z_center'] = 0.75
+        params['pc_range'] = 0.8
+        params['voxel_res'] = 84
+        params['depth_real_min'] = 0
+        params['depth_real_max'] = 1
+        params['depth_upsample'] = 6
+        params['out_image_type'] = 'depth'
+        params['out_background_encoding'] = 255
+
+    else:
+        raise NotImplementedError
+    return params
+
 
 
 def local_depth_transform(depth_image, mask_dict,
@@ -220,6 +243,29 @@ def local_sym_step(start_depth_dict,
         depth_image_traj = [v for v in reversed(depth_image_traj)]
     return depth_image_traj
 
+def generate_sym(obs, actions,sym_step_idx, **args):
+    sym_actions = [a for a in actions[:sym_step_idx]]
+    for k in range(len(sym_actions)):
+        # sym_actions[0] = np.random.uniform(-1,1)
+        sym_actions[k][1] = np.random.uniform(-1,1)
+        sym_actions[k][2] = np.random.uniform(-1,1)
+        sym_actions[k][3] = np.random.uniform(-1,1)
+        sym_actions[k][4] = np.random.uniform(-1,1)
+
+    start_depth_dict = obs[sym_step_idx]['depth']
+    start_mask_dict = obs[sym_step_idx]['mask']
+
+    sym_depth_image_traj = local_sym_step(
+        start_depth_dict, 
+        start_mask_dict, 
+        sym_actions,  
+        reverse=True,
+        **args)
+    new_obs = deepcopy(obs)
+    for i, d in enumerate(sym_depth_image_traj):
+        new_obs[i]['image'] = np.stack([d / 255, np.zeros(d.shape, dtype=float)], axis=0)
+    
+    return new_obs
 
 def get_depth_image_from_dict(depth_dict):
     depths = [v for k, v in depth_dict.items()]

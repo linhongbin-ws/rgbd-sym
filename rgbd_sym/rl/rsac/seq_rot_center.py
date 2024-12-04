@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from rgbd_sym.tool.sym import generate_sym, get_sym_params
 
 
 class SeqRotBufferCenter(SeqBuffer):
@@ -31,8 +32,10 @@ class SeqRotBufferCenter(SeqBuffer):
         self._num_aug_ep = num_aug_episode
         self._save_image = False
 
+
+
     def add_episode(self, observations, actions, rewards,
-                    terminals, next_observations, expert_masks):
+                    terminals, next_observations, expert_masks,obs_dicts, sym_args,sym=True):
         
         if observations.shape[0] >= 2:
 
@@ -47,15 +50,31 @@ class SeqRotBufferCenter(SeqBuffer):
 
             self._add_episode(observations, actions, rewards,
                               terminals, next_observations, expert_masks)
+            
+
             self._augment_and_add_episodes(observations, actions, rewards,
                                            terminals, next_observations,
                                            expert_masks)
+            if expert_masks[0][0] == 1 and sym:
+                sym_eps = 1
+                for i in range(sym_eps):
+                    new_obs = generate_sym(obs_dicts, actions, **sym_args)
+                    new_observations = [new_obs[i]['image'] for i in range(len(new_obs) - 1)] 
+                    new_next_observations = [new_obs[i+1]['image'] for i in range(len(new_obs) - 1)]
+                    new_observations = np.stack(new_observations, axis=0)
+                    new_next_observations= np.stack(new_next_observations, axis=0)
+                    self._add_episode(new_observations, actions, rewards,
+                                terminals, new_next_observations, expert_masks)
+                    self._augment_and_add_episodes(new_observations, actions, rewards,
+                                                terminals, new_next_observations,
+                                                expert_masks)
             return True
         else:
             return False
 
     def _augment_and_add_episodes(self, observations, actions, rewards,
-                                  terminals, next_observations, expert_masks):
+                                  terminals, next_observations, expert_masks,
+                                  ):
         """Augment episode"""
         seq_len = observations.shape[0]
         image_size = self._observation_dim[1:]

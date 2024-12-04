@@ -66,26 +66,6 @@ sym_depth_image_traj = local_sym_step(
     reverse=True,
     **args)
 
-print("local_sym_step() elspase time: ", time.time()- start)
-sym_depth_image_traj.extend(origin_depth_image_traj[sym_step_idx+1:])
-sym_actions.extend(origin_actions[sym_step_idx:])
-
-sym_actions = [a for a in origin_actions[:sym_step_idx]]
-sym_actions[0][1] = -1
-sym_actions[1][1] = -1
-sym_actions[2][1] = 1
-sym_actions[3][1] = 1
-
-sym_depth_image_traj2 = local_sym_step(
-    start_depth_dict, 
-    start_mask_dict, 
-    sym_actions, 
-    K=K, 
-    reverse=True,
-    **args)
-sym_depth_image_traj2.extend(origin_depth_image_traj[sym_step_idx+1:])
-sym_actions.extend(origin_actions[sym_step_idx:])
-
 # ground truth env with sym actions
 env, env_config = make_env(tags=['block_pull', "no_clutch"], seed=0)
 origin_actions = []

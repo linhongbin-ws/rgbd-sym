@@ -5,21 +5,25 @@ import numpy as np
 from pomdp_envs import pomdp
 from rgbd_sym.tool.common import scale_arr
 from copy import deepcopy
+from rgbd_sym.tool.depth import projection_matrix_to_K
+
 
 class PomdpEnv(BaseEnv):
     """ action: [gripper, x,y,z,yaw]"""
+
     def __init__(self,
                  task,
-                pybullet_gui=False,
-                  **kwargs,):
-        if task== 'block_pick':
+                 pybullet_gui=False,
+                 **kwargs,):
+        self.task = task
+        if task == 'block_pick':
             task_id = "BlockPicking-Symm-v0"
-        elif task== 'block_pull':
+        elif task == 'block_pull':
             task_id = "BlockPulling-Symm-v0"
-        client=gym.make(task_id, rendering=pybullet_gui)
+        client = gym.make(task_id, rendering=pybullet_gui)
         client.unwrapped._obs_dict = True
         super().__init__(client)
-        self._new_obs_shape = None 
+        self._new_obs_shape = None
 
     def reset(self):
         self.timestep = 0
@@ -52,13 +56,15 @@ class PomdpEnv(BaseEnv):
     def _process_obs(self, _obs):
         new_obs = _obs.copy()
         new_obs["image"] = _obs['image']
-        obs_t = np.transpose(_obs['image'], axes=[1,2,0])
-        obs_t = np.concatenate([obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)],axis=2)
-        new_obs['image_new'] = np.uint8(obs_t*255) # real depth to depth image
+        obs_t = np.transpose(_obs['image'], axes=[1, 2, 0])
+        obs_t = np.concatenate(
+            [obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)], axis=2)
+        new_obs['image_new'] = np.uint8(obs_t*255)  # real depth to depth image
         for k, v in new_obs["depth"].items():
             new_obs["depth"][k][np.logical_not(new_obs["mask"][k])] = 1
         new_obs["depthR"] = deepcopy(_obs["depth"])
-        new_obs['depth'] = {k:np.uint8(scale_arr(v, 0,1,0,255)) for k,v in _obs['depth'].items()}
+        new_obs['depth'] = {k: np.uint8(
+            scale_arr(v, 0, 1, 0, 255)) for k, v in _obs['depth'].items()}
         return new_obs
 
     @property
@@ -67,8 +73,7 @@ class PomdpEnv(BaseEnv):
             obs = self.reset()
             self._new_obs_shape = obs['image'].shape
         return gym.spaces.Box(0, 255, self._new_obs_shape,
-                                          dtype=np.uint8)
-    
+                              dtype=np.uint8)
 
     @property
     def seed(self):
@@ -79,6 +84,12 @@ class PomdpEnv(BaseEnv):
         self._seed = seed
         self.client.seed(seed)
         self.client.core_env.pose_rng(seed)
+
+    @property
+    def instrinsic_K(self):
+        proj = self.client.get_projection_matrix()
+        K = projection_matrix_to_K(proj, image_size=84)
+        return K
 
     def __getattr__(self, name):
         """__getattr__ is only invoked if the attribute wasn't found the usual ways."""

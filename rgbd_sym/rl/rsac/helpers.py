@@ -20,6 +20,7 @@ from utils import helpers as utl
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 
 def get_grad_norm(model):
@@ -59,14 +60,16 @@ def env_step(env, action):
     if env.action_space.__class__.__name__ == "Discrete":
         action = np.argmax(action)  # one-hot to int
     next_obs, reward, done, info = env.step(action)
+    next_obs_dict = deepcopy(next_obs)
     next_obs = next_obs['image']
+    
     
     # move to torch
     next_obs = ptu.from_numpy(next_obs).view(-1, *next_obs.shape)
     reward = ptu.FloatTensor([reward]).view(-1, 1)
     done = ptu.from_numpy(np.array(done, dtype=int)).view(-1, 1)
 
-    return next_obs, reward, done, info
+    return next_obs, reward, done, info, next_obs_dict
 
 
 def unpack_batch(batch):
