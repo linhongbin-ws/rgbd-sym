@@ -41,7 +41,10 @@ import wandb
 class Learner:
     def __init__(self, env_args, train_args, eval_args,
                  policy_args, seed, replay, time_limit,
-                 prefix, ckpt_dir, cfg_file, **kwargs):
+                 prefix, ckpt_dir, cfg_file, 
+                 sym_expert,
+                 sym_normal,
+                 **kwargs):
         self.seed = seed
         self.group_prefix = prefix
 
@@ -52,6 +55,9 @@ class Learner:
         # TODO:
         self.per_expert_eps = 1.0
         self.per_eps = 1e-6
+
+        self._sym_expert = sym_expert
+        self._sym_normal = sym_normal
 
         ckpt_filename = f"{env_args['env_name'][:-3]}"      \
                         + f"_{policy_args['algo_name']}"    \
@@ -126,7 +132,7 @@ class Learner:
             import pomdp_envs.pomdp
 
             assert num_eval_tasks > 0
-        
+
             # self.train_env = gym.make(env_name, rendering=self.replay)
             from rgbd_sym.api import make_env
             if env_name == "BlockPulling-Symm-v0":
@@ -300,7 +306,7 @@ class Learner:
             # prioritized replay + rotational augmentation (for BlockPushing)
             elif buffer_type == SeqPerRotBufferEff.buffer_type:
                 buffer_class = SeqPerRotBufferEff
-                
+
             elif buffer_type == SeqRotBufferCenter.buffer_type:
                 buffer_class = SeqRotBufferCenter
 
@@ -318,6 +324,8 @@ class Learner:
                 sample_weight_baseline=sample_weight_baseline,
                 num_aug_episode=num_aug_episode,
                 observation_type=self.train_env.observation_space.dtype,
+                sym_eps_expert=self._sym_expert,
+                sym_eps_normal=self._sym_normal,
             )
 
         # load buffer from checkpoint
@@ -595,7 +603,7 @@ class Learner:
             obs_dicts.append(obs_dict)
             obs = obs_dict["image"]
             obs = ptu.from_numpy(obs)
-            
+
             obs = obs.reshape(1, *obs.shape)
             done_rollout = False
 
@@ -811,7 +819,6 @@ class Learner:
                     expert_masks=np.zeros_like(term_list).reshape(-1, 1),  # (L, 1)
                     obs_dicts = obs_dicts,
                     sym_args=self.sym_args,
-                    sym=False,
                 )
 
                 if success:

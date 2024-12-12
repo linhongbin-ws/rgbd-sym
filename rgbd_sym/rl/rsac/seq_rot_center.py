@@ -19,7 +19,9 @@ class SeqRotBufferCenter(SeqBuffer):
         sampled_seq_len: int,
         sample_weight_baseline: float,
         num_aug_episode: int,
-        **kwargs
+        sym_eps_expert=4,
+        sym_eps_normal=4,
+        **kwargs,
     ):
 
         super().__init__(max_replay_buffer_size,
@@ -31,12 +33,12 @@ class SeqRotBufferCenter(SeqBuffer):
 
         self._num_aug_ep = num_aug_episode
         self._save_image = False
-
-
+        self._sym_eps_expert = sym_eps_expert
+        self._sym_eps_normal = sym_eps_normal
 
     def add_episode(self, observations, actions, rewards,
-                    terminals, next_observations, expert_masks,obs_dicts, sym_args,sym=True):
-        
+                    terminals, next_observations, expert_masks,obs_dicts, sym_args):
+
         if observations.shape[0] >= 2:
 
             assert (
@@ -50,24 +52,25 @@ class SeqRotBufferCenter(SeqBuffer):
 
             self._add_episode(observations, actions, rewards,
                               terminals, next_observations, expert_masks)
-            
 
             self._augment_and_add_episodes(observations, actions, rewards,
                                            terminals, next_observations,
                                            expert_masks)
-            if expert_masks[0][0] == 1 and sym:
-                sym_eps = 1
-                for i in range(sym_eps):
-                    new_obs = generate_sym(obs_dicts, actions, **sym_args)
-                    new_observations = [new_obs[i]['image'] for i in range(len(new_obs) - 1)] 
-                    new_next_observations = [new_obs[i+1]['image'] for i in range(len(new_obs) - 1)]
-                    new_observations = np.stack(new_observations, axis=0)
-                    new_next_observations= np.stack(new_next_observations, axis=0)
-                    self._add_episode(new_observations, actions, rewards,
-                                terminals, new_next_observations, expert_masks)
-                    self._augment_and_add_episodes(new_observations, actions, rewards,
-                                                terminals, new_next_observations,
-                                                expert_masks)
+            if expert_masks[0][0] == 1:
+                sym_eps = self._sym_eps_expert
+            else:
+                sym_eps = self._sym_eps_normal
+            for i in range(sym_eps):
+                new_obs = generate_sym(obs_dicts, actions, **sym_args)
+                new_observations = [new_obs[i]['image'] for i in range(len(new_obs) - 1)] 
+                new_next_observations = [new_obs[i+1]['image'] for i in range(len(new_obs) - 1)]
+                new_observations = np.stack(new_observations, axis=0)
+                new_next_observations= np.stack(new_next_observations, axis=0)
+                self._add_episode(new_observations, actions, rewards,
+                            terminals, new_next_observations, expert_masks)
+                self._augment_and_add_episodes(new_observations, actions, rewards,
+                                            terminals, new_next_observations,
+                                            expert_masks)
             return True
         else:
             return False

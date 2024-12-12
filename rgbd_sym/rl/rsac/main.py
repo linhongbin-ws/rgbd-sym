@@ -25,6 +25,9 @@ flags.DEFINE_float("entropy_alpha", None, "for [sac]")
 flags.DEFINE_float("time_limit", 1000.0, "time limit (discovery)")
 flags.DEFINE_float("init_alpha", None, "init value for alpha")
 
+flags.DEFINE_integer("sym_expert", 0, "sym_expert")
+flags.DEFINE_integer("sym_normal", 0, "sym_normal")
+
 flags.DEFINE_integer("seed", None, "seed")
 flags.DEFINE_integer("batch_size", None, "batch_size")
 flags.DEFINE_integer("save_interval", None, "save_interval")
@@ -183,6 +186,8 @@ learner = Learner(
     prefix=FLAGS.prefix,
     ckpt_dir=FLAGS.checkpoint_dir,
     cfg_file=FLAGS.cfg,
+    sym_expert=FLAGS.sym_expert,
+    sym_normal=FLAGS.sym_normal,
 )
 
 logger.log(
