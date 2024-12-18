@@ -136,7 +136,8 @@ class Learner:
             # self.train_env = gym.make(env_name, rendering=self.replay)
             from rgbd_sym.api import make_env
             if env_name == "BlockPulling-Symm-v0":
-                env_tag = ['block_pull']
+                env_tag = ['block_pull','no_clutch']
+                # env_tag = ["block_pull", "no_clutch", "no_sym_obs"]
             else:
                 raise NotImplementedError
             self.train_env, env_config = make_env(tags=env_tag, seed=self.seed)

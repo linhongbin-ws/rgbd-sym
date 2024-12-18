@@ -249,7 +249,7 @@ def generate_sym(obs, actions,sym_step_idx, **args):
         # sym_actions[0] = np.random.uniform(-1,1)
         sym_actions[k][1] = np.random.uniform(-1,1)
         sym_actions[k][2] = np.random.uniform(-1,1)
-        sym_actions[k][3] = np.random.uniform(-1,1)
+        # sym_actions[k][3] = np.random.uniform(-1,1)
         sym_actions[k][4] = np.random.uniform(-1,1)
 
     start_depth_dict = obs[sym_step_idx]['depth']
