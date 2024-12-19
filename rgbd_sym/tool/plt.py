@@ -38,6 +38,9 @@ def plot_img(imgs_2d, big_axes_title=[]):
 
 def plot_traj(
     point_mats,
+    elev=45,
+    azim=45,
+    roll=45,
 ):
     fig = plt.figure()
     ax = plt.axes(projection="3d")
@@ -47,13 +50,13 @@ def plot_traj(
 
     ax.set_xlabel("$X$")
     ax.set_ylabel("$Y$")
-    ax.set_ylabel("$Z$")
+    ax.set_zlabel("$Z$")
     # if legend_txt == None:
     pc_min = None
     pc_max = None
     for point_mat in point_mats:
         pc = point_mat['mat']
-        args = pc.copy()
+        args = point_mat.copy()
         args.pop('mat', None)
         ax.plot3D(
             pc[:, 0].tolist(),
@@ -68,6 +71,7 @@ def plot_traj(
     _range = np.max(pc_max- pc_min)
 
     plt.legend(loc="best")
+    ax.view_init(elev=elev, azim=azim, roll=roll)
     ax.axes.set_xlim3d(left=pc_min[0], right=pc_min[0]+_range)
     ax.axes.set_ylim3d(bottom=pc_min[1], top=pc_min[1]+_range)
     ax.axes.set_zlim3d(bottom=pc_min[2], top=pc_min[2]+_range)
@@ -79,3 +83,6 @@ def get_backend():
 
 def use_backend(backend):
     matplotlib.use(backend)
+
+
+    

@@ -31,6 +31,12 @@ def get_sym_params(env_name):
         params['out_image_type'] = 'depth'
         params['out_background_encoding'] = 255
 
+        params['sym_step_idx'] = 5
+        params['traj_nums']   = 4 
+        params['radius_ratio'] = 0.75
+        params['height_ratio'] = 1
+        params['screw_angle'] =  0
+
     else:
         raise NotImplementedError
     return params
@@ -201,7 +207,9 @@ def local_sym_step(start_depth_dict,
                    out_image_type='depth',
                    out_background_encoding=255,
                    reverse=False,
-                   debug=False):
+                   debug=False,
+                   **args,
+                   ):
     T_dict = None
     depth_dict_traj = []
     mask_dict_traj = []
@@ -243,6 +251,76 @@ def local_sym_step(start_depth_dict,
         depth_image_traj = [v for v in reversed(depth_image_traj)]
     return depth_image_traj
 
+
+
+def get_depth_image_from_dict(depth_dict):
+    depths = [v for k, v in depth_dict.items()]
+    new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
+    return new_obs_depth
+
+
+def Ts2actions(
+    origin_T,
+    interval_Ts,
+    action_delta_pos,
+    interval_gripper_states,
+    interval_oris,
+):
+    # print(origin_T)
+    actions = []
+    prv_T = origin_T[:3,3]
+    exceed= False
+    for i in range(len(interval_Ts)):
+        delta_T = interval_Ts[i][:3, 3] - prv_T
+        a_p = scale_arr(delta_T, -action_delta_pos, action_delta_pos, -1, 1)
+        a_p[0] = -a_p[0]
+        a_p[1] = -a_p[1]
+        # a_p[2] = -a_p[2]
+        # assert np.all(a_p) >= -1 and np.all(a_p) <=1, a_p
+        # assert a_o >= -1 and a_o <= 1, f"ori, {o}, max, {action_delta_rot}, i {i}"
+        if  not (np.all(a_p) >= -1 and np.all(a_p) <=1):
+            exceed = True
+            a_p = np.clip(a_p, -1, 1)
+        a = np.array(
+            [
+                interval_gripper_states[i],
+                a_p[0],
+                a_p[1],
+                a_p[2],
+                interval_oris[i],
+            ]
+        )
+        actions.append(a)
+        # print(prv_T)
+        prv_T = interval_Ts[i][:3, 3]
+    return actions, exceed
+
+def actions2Ts(
+    actions,
+    action_delta_pos,
+    action_delta_rot,
+):
+    trajTs = []
+    _actions = actions
+    _actions = [np.zeros(5)] + _actions
+    T_dict = None
+    
+    for action in _actions:
+        delta_T_dict = action2transformdict(
+            action,
+            reverse=False,
+            delta_pos=action_delta_pos,
+            delta_rot=action_delta_rot,
+        )
+        if T_dict is None:
+            T_dict = delta_T_dict
+        else:
+            T_dict = {k: TxT([delta_T_dict[k], v]) for k, v in T_dict.items()}
+        trajTs.append(T_dict)
+
+    trajTs = [v["object2"] for v in trajTs]
+    return trajTs
+
 def generate_sym(obs, actions,sym_step_idx, **args):
     sym_actions = [a for a in actions[:sym_step_idx]]
     for k in range(len(sym_actions)):
@@ -267,7 +345,82 @@ def generate_sym(obs, actions,sym_step_idx, **args):
     
     return new_obs
 
-def get_depth_image_from_dict(depth_dict):
-    depths = [v for k, v in depth_dict.items()]
-    new_obs_depth = np.min(np.stack(depths, axis=0), axis=0)
-    return new_obs_depth
+def generate_sym2(obs, origin_actions,
+                  sym_step_idx, 
+                  traj_nums=20, 
+                    radius_ratio =1,
+                    height_ratio =1,
+                    screw_angle = 0,
+                  **args):
+    
+
+    # generate pose of origin trajectory
+    trajTs = actions2Ts(
+        [-a for a in reversed(origin_actions)],
+        action_delta_pos=args["action_delta_pos"],
+        action_delta_rot=args["action_delta_rot"],
+    )
+
+    # generate poses of symmetric trajectory
+    new_trajTss = []
+    angles = np.linspace(0, 360, num=traj_nums)
+    for traj_idx in range(traj_nums):
+        new_trajTs = []
+        start_idx = len(trajTs) - sym_step_idx - 1
+        screw_cnt = 0
+        for idx in range(len(trajTs)):
+            if idx <= start_idx:
+                new_trajTs.append(trajTs[idx].copy())
+            else:
+                origin_T = trajTs[start_idx].copy()
+                current_T = trajTs[idx].copy()
+                current_T[0:3, 3] = current_T[0:3, 3] - origin_T[0:3, 3]
+                current_T[0:2, 3] = current_T[0:2, 3] * radius_ratio
+                current_T[2, 3] = current_T[2, 3] * height_ratio
+                deltaT = getT([0, 0, 0], [0, 0, angles[traj_idx] + screw_cnt * screw_angle], rot_type="euler")
+                current_T = TxT([deltaT, current_T])
+                current_T[0:3, 3] = current_T[0:3, 3] + origin_T[0:3, 3]
+                new_trajTs.append(current_T)
+                screw_cnt+=1
+        new_trajTss.append(new_trajTs)
+
+    # generate observation for symmetric trajectories
+    new_sym_obss = []
+    new_sym_actionss = []
+    for new_trajTs in new_trajTss:
+        _Ts = deepcopy(new_trajTs)
+        reverse_actions, exceed = Ts2actions(
+            origin_T=_Ts[0],
+            interval_Ts=_Ts[1:],
+            action_delta_pos=args["action_delta_pos"],
+            interval_gripper_states=np.zeros(len(_Ts[1:])),
+            interval_oris=np.zeros(len(_Ts[1:])),
+        )
+        reverse_actions = [a for a in reversed(reverse_actions)]
+        reverse_actions_old = [-a for a in origin_actions]
+        for k in range(len(reverse_actions_old)):
+            if k>= sym_step_idx-1:
+                reverse_actions[k][1] = reverse_actions_old[k][1]
+                reverse_actions[k][2] =  reverse_actions_old[k][2]
+                reverse_actions[k][3] =  reverse_actions_old[k][3]
+        reverse_actions = [a for a in reversed(reverse_actions)]
+        start_depth_dict = obs[sym_step_idx]['depth']
+        start_mask_dict = obs[sym_step_idx]['mask']
+        reverse_action_short = reverse_actions[len(reverse_actions)-sym_step_idx: ]
+        sym_depth_image_traj3 = local_sym_step(
+            start_depth_dict, start_mask_dict, reverse_action_short, reverse=False, **args
+        )
+        # obs
+        sym_depth_image_traj3 = [s for s in reversed(sym_depth_image_traj3)]
+        new_obs = deepcopy(obs)
+        for _idx, o in enumerate(sym_depth_image_traj3):
+            new_obs[_idx]['image'][0,:,:] = o
+        new_sym_obss.append(new_obs)
+        # actions
+        new_sym_actions = deepcopy(origin_actions)
+        action_short = [-a for a in reversed(reverse_action_short)]
+        for _idx, a in enumerate(action_short):
+            new_sym_actions[_idx] = a
+        new_sym_actionss.append(new_sym_actions)
+
+    return new_sym_obss, new_sym_actionss

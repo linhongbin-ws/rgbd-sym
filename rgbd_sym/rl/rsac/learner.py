@@ -144,7 +144,7 @@ class Learner:
             from rgbd_sym.tool.sym import get_sym_params
             self.sym_args = get_sym_params(env_name="block_pull")
             self.sym_args['K'] = self.train_env.unwrapped.instrinsic_K
-            self.sym_args['sym_step_idx'] = 5
+            # self.sym_args['sym_step_idx'] = 5
 
             # self.train_env.seed = self.seed
             # self.train_env.action_space.np_random.seed(self.seed)  # crucial

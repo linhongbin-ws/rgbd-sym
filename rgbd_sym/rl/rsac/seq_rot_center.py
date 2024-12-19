@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from rgbd_sym.tool.sym import generate_sym, get_sym_params
+from rgbd_sym.tool.sym import generate_sym2, get_sym_params
 
 
 class SeqRotBufferCenter(SeqBuffer):
@@ -60,17 +60,24 @@ class SeqRotBufferCenter(SeqBuffer):
                 sym_eps = self._sym_eps_expert
             else:
                 sym_eps = self._sym_eps_normal
-            for i in range(sym_eps):
-                new_obs = generate_sym(obs_dicts, actions, **sym_args)
-                new_observations = [new_obs[i]['image'] for i in range(len(new_obs) - 1)] 
-                new_next_observations = [new_obs[i+1]['image'] for i in range(len(new_obs) - 1)]
-                new_observations = np.stack(new_observations, axis=0)
-                new_next_observations= np.stack(new_next_observations, axis=0)
-                self._add_episode(new_observations, actions, rewards,
-                            terminals, new_next_observations, expert_masks)
-                self._augment_and_add_episodes(new_observations, actions, rewards,
-                                            terminals, new_next_observations,
-                                            expert_masks)
+            
+            if sym_eps > 0:
+                args = sym_args.copy()
+                args['traj_nums'] = sym_eps
+                new_obss, new_actionss = generate_sym2(obs_dicts, actions, **args)
+                print(f"adding {len(new_obss)} sym episode")
+                for idx in range(len(new_obss)):
+                    new_obs = new_obss[idx]
+                    new_actions = new_actionss[idx]
+                    new_observations = [new_obs[i]['image'] for i in range(len(new_obs) - 1)] 
+                    new_next_observations = [new_obs[i+1]['image'] for i in range(len(new_obs) - 1)]
+                    new_observations = np.stack(new_observations, axis=0)
+                    new_next_observations= np.stack(new_next_observations, axis=0)
+                    self._add_episode(new_observations, new_actions, rewards,
+                                terminals, new_next_observations, expert_masks)
+                    self._augment_and_add_episodes(new_observations, actions, rewards,
+                                                terminals, new_next_observations,
+                                                expert_masks)
             return True
         else:
             return False
