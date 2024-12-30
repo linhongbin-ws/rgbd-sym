@@ -31,11 +31,11 @@ def get_sym_params(env_name):
         params['out_image_type'] = 'depth'
         params['out_background_encoding'] = 255
 
-        params['sym_step_idx'] = 5
         params['traj_nums']   = 4 
         params['radius_ratio'] = 0.75
         params['height_ratio'] = 1
         params['screw_angle'] =  0
+        params['sym_z_distance_thres'] = 0.092
 
     else:
         raise NotImplementedError
@@ -346,14 +346,16 @@ def generate_sym(obs, actions,sym_step_idx, **args):
     return new_obs
 
 def generate_sym2(obs, origin_actions,
-                  sym_step_idx, 
                   traj_nums=20, 
                     radius_ratio =1,
                     height_ratio =1,
                     screw_angle = 0,
+                    sym_z_distance_thres = 0.092,
                   **args):
     
-
+    for sym_step_idx, _o in enumerate(obs):
+        if np.abs(_o["z_distance"]) < sym_z_distance_thres:
+            break
     # generate pose of origin trajectory
     trajTs = actions2Ts(
         [-a for a in reversed(origin_actions)],

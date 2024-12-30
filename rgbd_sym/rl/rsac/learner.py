@@ -394,7 +394,7 @@ class Learner:
         wandb.init(project=project_name,
                    settings=wandb.Settings(_disable_stats=True),
                    group=group,
-                   name=f"s{self.seed}",
+                   name=group+f"-s{self.seed}",
                    **wandb_args)
         wandb.save(cfg_file)
 

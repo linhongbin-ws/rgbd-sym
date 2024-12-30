@@ -65,6 +65,9 @@ class PomdpEnv(BaseEnv):
         new_obs["depthR"] = deepcopy(_obs["depth"])
         new_obs['depth'] = {k: np.uint8(
             scale_arr(v, 0, 1, 0, 255)) for k, v in _obs['depth'].items()}
+        gripper_d = np.mean(new_obs["depthR"]["gripper"][new_obs["mask"]["gripper"]])
+        object_d = np.mean(new_obs["depthR"]["object2"][new_obs["mask"]["object2"]])
+        new_obs['z_distance'] = gripper_d - object_d
         return new_obs
 
     @property
