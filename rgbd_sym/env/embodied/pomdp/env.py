@@ -16,10 +16,16 @@ class PomdpEnv(BaseEnv):
                  pybullet_gui=False,
                  **kwargs,):
         self.task = task
+        task_id = {
+                "block_pick":"BlockPicking-Symm-Dict",
+                "block_pull":"BlockPulling-Symm-Dict",
+                "block_push":"BlockPushing-Symm-Dict",
+                "drawer_open":"DrawerOpening-Symm-Dict", 
+                   }[task]
         if task == 'block_pick':
-            task_id = "BlockPicking-Symm-v0"
+            task_id = "BlockPicking-Symm-Dict"
         elif task == 'block_pull':
-            task_id = "BlockPulling-Symm-v0"
+            task_id = "BlockPulling-Symm-Dict"
         client = gym.make(task_id, rendering=pybullet_gui)
         client.unwrapped._obs_dict = True
         super().__init__(client)

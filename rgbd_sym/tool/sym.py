@@ -16,7 +16,7 @@ from copy import deepcopy
 
 
 def get_sym_params(env_name):
-    if env_name == "block_pull":
+    if env_name in ["block_pull", "block_pick", "block_push", "drawer_open"]:
         params = {}
         params['action_delta_pos'] = 0.05
         params['action_delta_rot'] = np.pi / 8

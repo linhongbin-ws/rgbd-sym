@@ -9,11 +9,6 @@ default:
   embodied:
     PomdpEnv:
       pybullet_gui: False
-      obs_dict: True
-      block_pick:
-        something: True
-      block_pull:
-        something: True
 
 no_clutch:
   wrapper.VirtualClutch.start: 0
@@ -28,5 +23,16 @@ no_sym_obs:
 gui:
   embodied.PomdpEnv.pybullet_gui: True
 
+block_push:
+  task_name: block_push
+
 block_pull:
   task_name: block_pull
+
+block_pick:
+  task_name: block_pick
+
+
+
+drawer_open:
+  task_name: drawer_open
