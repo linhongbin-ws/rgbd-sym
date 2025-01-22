@@ -25,9 +25,8 @@ def make_env(env_config=None, tags=[], seed=0):
     _kwargs["task"] = config.task_name
     # task_name = config.task_name
     # _kwargs.update(getattr(embodied_args, task_name).flat)
-    # for k, v in embodied_args.flat.items():
-    #     if k.find(task_name) < 0:
-    #         _kwargs.update({k: v})
+    for k, v in embodied_args.flat.items():
+        _kwargs.update({k: v})
     env = _call(**_kwargs)
 
     for wrapper in config.wrapper.pipeline:
