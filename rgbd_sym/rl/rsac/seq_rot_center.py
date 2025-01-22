@@ -37,7 +37,9 @@ class SeqRotBufferCenter(SeqBuffer):
         self._sym_eps_normal = sym_eps_normal
 
     def add_episode(self, observations, actions, rewards,
-                    terminals, next_observations, expert_masks,obs_dicts, sym_args):
+                    terminals, next_observations, expert_masks,obs_dicts, 
+                    K,
+                    env_id):
 
         if observations.shape[0] >= 2:
 
@@ -62,7 +64,9 @@ class SeqRotBufferCenter(SeqBuffer):
                 sym_eps = self._sym_eps_normal
             
             if sym_eps > 0:
-                args = sym_args.copy()
+                args = get_sym_params(env_id)
+                args['K'] = K
+                # args = sym_args.copy()
                 args['traj_nums'] = sym_eps
                 new_obss, new_actionss = generate_sym2(obs_dicts, actions, **args)
                 print(f"adding {len(new_obss)} sym episode")

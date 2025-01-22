@@ -137,14 +137,13 @@ class Learner:
             from rgbd_sym.api import make_env
             if env_name == "BlockPulling-Symm-v0":
                 env_tag = ['block_pull','no_clutch']
+                self.env_id = "block_pull"
                 # env_tag = ["block_pull", "no_clutch", "no_sym_obs"]
             else:
                 raise NotImplementedError
             self.train_env, env_config = make_env(tags=env_tag, seed=self.seed)
             from rgbd_sym.tool.sym import get_sym_params
-            self.sym_args = get_sym_params(env_name="block_pull")
-            self.sym_args['K'] = self.train_env.unwrapped.instrinsic_K
-            # self.sym_args['sym_step_idx'] = 5
+            # self.sym_args['K'] = self.train_env.unwrapped.instrinsic_K
 
             # self.train_env.seed = self.seed
             # self.train_env.action_space.np_random.seed(self.seed)  # crucial
@@ -681,7 +680,9 @@ class Learner:
                         ),  # (L, dim)
                         expert_masks=np.ones_like(term_list).reshape(-1, 1),  # (L, 1)
                         obs_dicts = obs_dicts,
-                        sym_args=self.sym_args,
+                        K=self.train_env.unwrapped.instrinsic_K,
+                        env_id=self.env_id,
+                        # sym_args=self.sym_args,
                     )
 
                     print(
@@ -819,7 +820,8 @@ class Learner:
                     ),  # (L, dim)
                     expert_masks=np.zeros_like(term_list).reshape(-1, 1),  # (L, 1)
                     obs_dicts = obs_dicts,
-                    sym_args=self.sym_args,
+                    K=self.train_env.unwrapped.instrinsic_K,
+                    env_id=self.env_id,
                 )
 
                 if success:
