@@ -63,7 +63,7 @@ class SeqRotBufferCenter(SeqBuffer):
             else:
                 sym_eps = self._sym_eps_normal
             
-            if sym_eps > 0:
+            if sym_eps > 0 and rewards[-1] > 0.5:
                 args = get_sym_params(env_id)
                 args['K'] = K
                 # args = sym_args.copy()

@@ -137,8 +137,10 @@ class Learner:
             from rgbd_sym.api import make_env
             if env_name == "BlockPulling-Symm-v0":
                 env_tag = ['block_pull']
-                self.env_id = "block_pull"
-                # env_tag = ["block_pull", "no_clutch", "no_sym_obs"]
+                self.env_id = 'block_pull'
+            elif env_name == "BlockPicking-Symm-v0":
+                env_tag = ['block_pick']
+                self.env_id = 'block_pick'
             else:
                 raise NotImplementedError
             self.train_env, env_config = make_env(tags=env_tag, seed=self.seed)
@@ -375,10 +377,9 @@ class Learner:
         num_expert_rollouts_pool,
         **kwargs,
     ):
-        project_name = f"Symmetry_{env_name[:-3]}"
-
+        project_name = f"Symmetry_{env_name[:-3]}_e{num_expert_rollouts_pool}"
         group = f"{algo_name}_{actor_type}_{critic_type}_" + \
-                f"r{num_rotations}_e{num_expert_rollouts_pool}"
+                f"r{num_rotations}_snia_e{self._sym_expert}_n{self._sym_normal}"
 
         if self.group_prefix is not None:
             group = f"{self.group_prefix}_{group}"

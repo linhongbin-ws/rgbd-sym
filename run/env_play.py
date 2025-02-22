@@ -83,8 +83,7 @@ for _ in tqdm(range(args.repeat)):
         # print("step....")
         obs, reward, done, info = env.step(action)
 
-        print("reward:", reward, "done:", done,)
-
+       
         print(obs)
         img = obs.copy()
 
@@ -112,6 +111,8 @@ for _ in tqdm(range(args.repeat)):
         print(img.keys())
         print(info)
         print("is exceed ws:",obs["is_exceed_ws"])
+        print("reward:", reward, "done:", done,)
+
 
         if not args.no_vis:
             img_break = env.cv_show(imgs=img)
