@@ -35,7 +35,7 @@ def get_sym_params(env_name):
         params['radius_ratio'] = np.random.uniform(0.75,1)
         params['height_ratio'] = np.random.uniform(0.75,1.3)
         params['screw_angle'] =  np.random.uniform(0,10)
-        params['sym_z_distance_thres'] = 0.092
+        params['sym_z_distance_thres'] = -0.092
 
     else:
         raise NotImplementedError
@@ -350,11 +350,11 @@ def generate_sym2(obs, origin_actions,
                     radius_ratio =1,
                     height_ratio =1,
                     screw_angle = 0,
-                    sym_z_distance_thres = 0.092,
+                    sym_z_distance_thres = -0.092,
                   **args):
     
     for sym_step_idx, _o in enumerate(obs):
-        if np.abs(_o["z_distance"]) < sym_z_distance_thres:
+        if _o["z_distance"] > sym_z_distance_thres or _o["is_exceed_ws"]:
             break
     # generate pose of origin trajectory
     trajTs = actions2Ts(

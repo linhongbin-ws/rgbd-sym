@@ -111,6 +111,7 @@ for _ in tqdm(range(args.repeat)):
         # img.pop("depth", None)
         print(img.keys())
         print(info)
+        print("is exceed ws:",obs["is_exceed_ws"])
 
         if not args.no_vis:
             img_break = env.cv_show(imgs=img)
