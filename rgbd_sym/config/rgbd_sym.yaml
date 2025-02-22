@@ -2,7 +2,7 @@ default:
   seed: 0
   wrapper:
     pipeline: ['VirtualClutch',"SymObs"]
-    VirtualClutch: { start: 6 }
+    VirtualClutch: { start: 0 }
     SymObs: {skip: False}
   task_name: block_pick
   embodied_name: PomdpEnv
@@ -10,8 +10,8 @@ default:
     PomdpEnv:
       pybullet_gui: False
 
-no_clutch:
-  wrapper.VirtualClutch.start: 0
+# no_clutch:
+#   wrapper.VirtualClutch.start: 0
 
 no_obs_dict:
   embodied.PomdpEnv.obs_dict: False
