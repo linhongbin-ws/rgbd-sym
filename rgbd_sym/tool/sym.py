@@ -354,7 +354,7 @@ def generate_sym2(obs, origin_actions,
                   **args):
     
     for sym_step_idx, _o in enumerate(obs):
-        if _o["z_distance"] > sym_z_distance_thres or _o["is_exceed_ws"]:
+        if _o["z_distance"] > sym_z_distance_thres or _o["is_exceed_ws"] or _o["gripper_state_change"]:
             break
     # generate pose of origin trajectory
     trajTs = actions2Ts(

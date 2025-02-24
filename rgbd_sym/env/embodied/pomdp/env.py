@@ -30,12 +30,17 @@ class PomdpEnv(BaseEnv):
         client.unwrapped._obs_dict = True
         super().__init__(client)
         self._new_obs_shape = None
+        self._gripper_state_change = False
+        self._gripper_state_open = True
 
     def reset(self):
         self.timestep = 0
         obs = self.client.reset()
         obs = self._process_obs(obs)
         self._prv_obs = obs
+        self._gripper_state_change = False
+        self._gripper_state_prv_open = True
+        obs["gripper_state_change"] = False
         return obs
 
     def step(self, action, skip=False):
@@ -48,8 +53,17 @@ class PomdpEnv(BaseEnv):
             info = {}
             info["success"] = False
         else:
+            if _action[0] >=0:
+                _action[0] = 1
+                _gripper_state_open = True
+            else:
+                _action[0] = -1
+                _gripper_state_open = False
             obs, reward, done, info = self.client.step(_action)
             obs = self._process_obs(obs)
+            if _gripper_state_open != self._gripper_state_prv_open:
+                self._gripper_state_change = True
+            obs["gripper_state_change"] = self._gripper_state_change
 
         return obs, reward, done, info
 
@@ -74,6 +88,7 @@ class PomdpEnv(BaseEnv):
         gripper_d = np.median(new_obs["depthR"]["gripper"][new_obs["mask"]["gripper"]])
         object_d = np.median(new_obs["depthR"]["object2"][new_obs["mask"]["object2"]])
         new_obs['z_distance'] = gripper_d - object_d
+
         return new_obs
 
     @property
