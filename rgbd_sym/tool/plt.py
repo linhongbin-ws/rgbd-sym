@@ -41,13 +41,14 @@ def plot_traj(
     elev=45,
     azim=45,
     roll=45,
+    no_grid=False,
 ):
     fig = plt.figure()
     ax = plt.axes(projection="3d")
     # ax.axes.set_xlim3d(left=range_min[0], right=range_max[0])
     # ax.axes.set_ylim3d(bottom=range_min[1], top=range_max[1])
     # ax.axes.set_zlim3d(bottom=range_min[2], top=range_max[2])
-
+    
     ax.set_xlabel("$X$")
     ax.set_ylabel("$Y$")
     ax.set_zlabel("$Z$")
@@ -75,6 +76,11 @@ def plot_traj(
     ax.axes.set_xlim3d(left=pc_min[0], right=pc_min[0]+_range)
     ax.axes.set_ylim3d(bottom=pc_min[1], top=pc_min[1]+_range)
     ax.axes.set_zlim3d(bottom=pc_min[2], top=pc_min[2]+_range)
+    if no_grid:
+        ax.grid(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
     show()
 
 

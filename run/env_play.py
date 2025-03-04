@@ -1,4 +1,5 @@
 from rgbd_sym.api import make_env
+from rgbd_sym.tool.common import scale_arr
 from rgbd_sym.env.wrapper import Visualizer, ActionOracle
 import argparse
 from tqdm import tqdm
@@ -86,7 +87,7 @@ for _ in tqdm(range(args.repeat)):
        
         print(obs)
         img = obs.copy()
-
+        img['depth_voxel'] =  np.stack([np.uint8(img['image'][0,:,:]*255)]*3, axis=2)
         if isinstance(img, dict):
             print(img.keys())
             img["depth"] = get_depth_image(img["depth"])
@@ -112,6 +113,7 @@ for _ in tqdm(range(args.repeat)):
         print(info)
         print("is exceed ws:",obs["is_exceed_ws"])
         print("reward:", reward, "done:", done,)
+
 
 
         if not args.no_vis:

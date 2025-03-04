@@ -57,7 +57,8 @@ class PomdpEnv(BaseEnv):
         return self.client.render(mode=mode)
 
     def get_oracle_action(self, obs=None):
-        return self.client.query_expert(0)
+        idx = self._oracle_rng.randint(2)
+        return self.client.query_expert(idx)
 
     def _process_obs(self, _obs):
         new_obs = _obs.copy()
@@ -93,6 +94,7 @@ class PomdpEnv(BaseEnv):
         self._seed = seed
         self.client.seed(seed)
         self.client.core_env.pose_rng(seed)
+        self._oracle_rng =  np.random.RandomState(seed)
 
     @property
     def instrinsic_K(self):
