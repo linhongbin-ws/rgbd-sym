@@ -9,9 +9,9 @@ from matplotlib.pyplot import imshow, subplot, axis, cm, show
 import matplotlib.pyplot as plt
 from rgbd_sym.tool.depth import get_intrinsic_matrix, occup2image, scale_K
 # from rgbd_sym.tool.depth import depth_image_to_point_cloud
-# from rgbd_sym.tool.depth import pointclouds2occupancy
+from rgbd_sym.tool.depth import pointclouds2occupancy
 from rgbd_sym.tool.o3d import depth_image_to_point_cloud
-from rgbd_sym.tool.o3d import pointclouds2occupancy
+# from rgbd_sym.tool.o3d import pointclouds2occupancy
 from copy import deepcopy
 
 
@@ -36,6 +36,9 @@ def get_sym_params(env_name):
         params['height_ratio'] = np.random.uniform(0.75,1.3)
         params['screw_angle'] =  np.random.uniform(0,10)
         params['sym_z_distance_thres'] = 0.092
+
+        # if env_name in "block_push":
+        #     params['pc_range'] = 100
 
     else:
         raise NotImplementedError
@@ -187,6 +190,11 @@ def action2transformdict(action, delta_pos, delta_rot, reverse=False, ):
                                      [0, 0, 0],
                                      rot_type="euler")
     transform_dict['object2'] = transform_dict['object1'].copy()
+    transform_dict['object3'] = getT([-delta_pos*action[1]*sign,
+                                      -delta_pos*action[2]*sign,
+                                      0],
+                                     [0, 0, 0],
+                                     rot_type="euler")
     return transform_dict
 
 
@@ -365,7 +373,7 @@ def generate_sym2(obs, origin_actions,
 
     # generate poses of symmetric trajectory
     new_trajTss = []
-    angles = np.linspace(0, 360, num=traj_nums)
+    angles = np.linspace(0, 360, num=traj_nums, endpoint=False)
     for traj_idx in range(traj_nums):
         new_trajTs = []
         start_idx = len(trajTs) - sym_step_idx - 1

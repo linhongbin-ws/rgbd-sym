@@ -22,17 +22,20 @@ class PomdpEnv(BaseEnv):
                 "block_push":"BlockPushing-Symm-Dict",
                 "drawer_open":"DrawerOpening-Symm-Dict", 
                    }[task]
-        if task == 'block_pick':
-            task_id = "BlockPicking-Symm-Dict"
-        elif task == 'block_pull':
-            task_id = "BlockPulling-Symm-Dict"
+        # if task == 'block_pick':
+        #     task_id = "BlockPicking-Symm-Dict"
+        # elif task == 'block_pull':
+        #     task_id = "BlockPulling-Symm-Dict"
         client = gym.make(task_id, rendering=pybullet_gui)
         client.unwrapped._obs_dict = True
         super().__init__(client)
         self._new_obs_shape = None
+        self._oracle_rng = np.random.RandomState(0)
+        self._eps_int = 0
 
     def reset(self):
         self.timestep = 0
+        self._eps_int+=1
         obs = self.client.reset()
         obs = self._process_obs(obs)
         self._prv_obs = obs
@@ -57,7 +60,7 @@ class PomdpEnv(BaseEnv):
         return self.client.render(mode=mode)
 
     def get_oracle_action(self, obs=None):
-        return self.client.query_expert(0)
+        return self.client.query_expert(self._eps_int)
 
     def _process_obs(self, _obs):
         new_obs = _obs.copy()
@@ -72,7 +75,10 @@ class PomdpEnv(BaseEnv):
         new_obs['depth'] = {k: np.uint8(
             scale_arr(v, 0, 1, 0, 255)) for k, v in _obs['depth'].items()}
         gripper_d = np.mean(new_obs["depthR"]["gripper"][new_obs["mask"]["gripper"]])
+        # if "object2" in new_obs["depthR"]:
         object_d = np.mean(new_obs["depthR"]["object2"][new_obs["mask"]["object2"]])
+        # else:
+        #     object_d = 0
         new_obs['z_distance'] = gripper_d - object_d
         return new_obs
 
@@ -93,6 +99,7 @@ class PomdpEnv(BaseEnv):
         self._seed = seed
         self.client.seed(seed)
         self.client.core_env.pose_rng(seed)
+        self._oracle_rng = np.random.RandomState(seed)
 
     @property
     def instrinsic_K(self):
