@@ -2,7 +2,7 @@ seed: 73
 cuda: 0 # use_gpu
 env:
   env_type: pomdp
-  env_name: BlockPicking-Symm-v0
+  env_name: DrawerOpening-Symm-v0
   num_eval_tasks: 10 # num of eval episodes
 
 train:
@@ -53,13 +53,13 @@ policy:
     alpha_lr: 0.001
     init_alpha: 0.1
 
-  sacfd:
+  sac_drq:
     entropy_alpha: 0.01 # tend to be det policy...
     automatic_entropy_tuning: true
     alpha_lr: 0.001
     init_alpha: 0.1
 
-  sac_drq:
+  sacfd:
     entropy_alpha: 0.01 # tend to be det policy...
     automatic_entropy_tuning: true
     alpha_lr: 0.001

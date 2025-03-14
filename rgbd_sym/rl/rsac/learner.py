@@ -136,9 +136,17 @@ class Learner:
             # self.train_env = gym.make(env_name, rendering=self.replay)
             from rgbd_sym.api import make_env
             if env_name == "BlockPulling-Symm-v0":
-                env_tag = ['block_pull']
+                self.env_id = 'block_pull'
+                env_tag = [self.env_id]
             elif env_name == "BlockPicking-Symm-v0":
-                env_tag = ['block_pick']
+                self.env_id = 'block_pick'
+                env_tag = [self.env_id]
+            elif env_name == "BlockPushing-Symm-v0":
+                self.env_id = 'block_push'
+                env_tag = [self.env_id]
+            elif env_name == "DrawerOpening-Symm-v0":
+                self.env_id = 'drawer_open'
+                env_tag = [self.env_id]
             else:
                 raise NotImplementedError
             self.train_env, env_config = make_env(tags=env_tag, seed=self.seed)

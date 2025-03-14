@@ -2,12 +2,13 @@ seed: 73
 cuda: 0 # use_gpu
 env:
   env_type: pomdp
-  env_name: BlockPicking-Symm-v0
+  env_name: BlockPushing-Symm-v0
+
   num_eval_tasks: 10 # num of eval episodes
 
 train:
   # 100*50 = 50k steps
-  num_iters: 800 # number meta-training iterates
+  num_iters: 1600 # number meta-training iterates
   num_init_rollouts_pool: 20 # before training
   num_expert_rollouts_pool: 80 # before training
   num_rollouts_per_iter: 1
@@ -22,14 +23,14 @@ train:
   num_aug_episode: 4
 
 eval:
-  log_interval: 10 # num of iters
-  save_interval: -1
+  log_interval: 5 # num of iters
+  save_interval: 40
   log_tensorboard: false
 
 policy:
   separate: True
-  actor_type: normal # [normal, equi]
-  critic_type: normal # [normal, equi]
+  actor_type: equi # [normal, equi]
+  critic_type: equi # [normal, equi]
   algo_name: sac # [sac, td3]
 
   num_rotations: 4 # group
