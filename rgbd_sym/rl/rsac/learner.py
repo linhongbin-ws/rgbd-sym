@@ -384,11 +384,11 @@ class Learner:
         **kwargs,
     ):
         project_name = f"Symmetry_{env_name[:-3]}_e{num_expert_rollouts_pool}"
-        group = f"{algo_name}_{actor_type}_{critic_type}_" + \
-                f"r{num_rotations}_snia_e{self._sym_expert}_n{self._sym_normal}"
+        run_name = f"{algo_name}_{actor_type}_{critic_type}_" + \
+                f"r{num_rotations}_snia_e{self._sym_expert}_n{self._sym_normal}-s{self.seed}_{self.group_prefix}"
 
         if self.group_prefix is not None:
-            group = f"{self.group_prefix}_{group}"
+            group_name = f"{self.group_prefix}"
 
         wandb_args = {}
         if self.chkpt_dict is not None:
@@ -399,8 +399,8 @@ class Learner:
 
         wandb.init(project=project_name,
                    settings=wandb.Settings(_disable_stats=True),
-                   group=group,
-                   name=group+f"-s{self.seed}",
+                   group=group_name,
+                   name=run_name,
                    **wandb_args)
         wandb.save(cfg_file)
 
