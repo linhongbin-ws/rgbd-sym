@@ -8,7 +8,7 @@ import random
 import torch
 from torch.nn import functional as F
 import gym
-
+import datetime
 from utils.helpers import center_crop
 
 # suppress this warning https://github.com/openai/gym/issues/1844
@@ -383,9 +383,10 @@ class Learner:
         num_expert_rollouts_pool,
         **kwargs,
     ):
+        timestamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
         project_name = f"Symmetry_{env_name[:-3]}_e{num_expert_rollouts_pool}"
         run_name = f"{algo_name}_{actor_type}_{critic_type}_" + \
-                f"r{num_rotations}_snia_e{self._sym_expert}_n{self._sym_normal}-s{self.seed}_{self.group_prefix}"
+                f"r{num_rotations}_snia_e{self._sym_expert}_n{self._sym_normal}-s{self.seed}_{timestamp}_{self.group_prefix}"
 
         if self.group_prefix is not None:
             group_name = f"{self.group_prefix}"
