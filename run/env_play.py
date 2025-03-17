@@ -88,30 +88,44 @@ for _ in tqdm(range(args.repeat)):
         print(obs)
         img = obs.copy()
 
-        if isinstance(img, dict):
-            print(img.keys())
-            img["depth"] = get_depth_image(img["depth"])
-            img.pop("image", None)
-            img.pop("imageR", None)
-            img.pop("depthR", None)
-        else:
-            if img.shape[0] < 3:
-                img = np.transpose(img, axes=[2, 1, 0])
-                # img = img[:,:,0:]
-                img = img * 255
-                img = img.astype(np.uint8)
-                pad_dim = 3 - img.shape[2]
+        # if isinstance(img, dict):
+        #     print(img.keys())
+        #     img["depth"] = get_depth_image(img["depth"])
+        #     img.pop("image", None)
+        #     img.pop("imageR", None)
+        #     img.pop("depthR", None)
+        # else:
+        #     if img.shape[0] < 3:
+        #         img = np.transpose(img, axes=[2, 1, 0])
+        #         # img = img[:,:,0:]
+        #         img = img * 255
+        #         img = img.astype(np.uint8)
+        #         pad_dim = 3 - img.shape[2]
 
-                img = np.concatenate(
-                    (img, np.zeros(img.shape[:2] + (pad_dim,), dtype=np.uint8)), axis=2
-                )
-                img = {"rgb": img}
+        #         img = np.concatenate(
+        #             (img, np.zeros(img.shape[:2] + (pad_dim,), dtype=np.uint8)), axis=2
+        #         )
+        #         img = {"rgb": img}
 
         # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
         # img.pop("depth", None)
+        
         print(img.keys())
         print(info)
+        img['image'] =  np.transpose(img['image'], axes=[1, 2, 0])
+        img['image'] = np.uint8(img['image']* 255)
+        img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
 
+        # from matplotlib.pyplot import imshow, subplot, axis, cm, show
+        # import matplotlib.pyplot as plt
+        # import matplotlib
+        # ax = subplot(1, 2, 1)
+        # imshow(img['image_new'][:,:,0])
+        # plt.colorbar()
+        # ax = subplot(1, 2, 2)
+        # imshow(img['image'][:,:,0])
+        # plt.colorbar()
+        # show()
         if not args.no_vis:
             img_break = env.cv_show(imgs=img)
             if img_break:

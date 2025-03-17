@@ -23,7 +23,8 @@ def get_sym_params(env_name):
         params['pc_x_center'] = 0.0
         params['pc_y_center'] = 0.0
         params['pc_z_center'] = 0.75
-        params['pc_range'] = 0.8
+        # params['pc_range'] = 0.8
+        params['pc_range'] = 0.4
         params['voxel_res'] = 84
         params['depth_real_min'] = 0
         params['depth_real_max'] = 1
