@@ -28,7 +28,7 @@ def get_sym_params(env_name):
         params['voxel_res'] = 84
         params['depth_real_min'] = 0
         params['depth_real_max'] = 1
-        params['depth_upsample'] = 6
+        params['depth_upsample'] = 3 # might need to tune
         params['out_image_type'] = 'depth'
         params['out_background_encoding'] = 255
 
@@ -256,9 +256,11 @@ def local_sym_step(start_depth_dict,
 
     depth_image_traj = [get_depth_image_from_dict(
         _d) for _d in depth_dict_traj]
+    
     if reverse:
         depth_image_traj = [v for v in reversed(depth_image_traj)]
-    return depth_image_traj
+        mask_dict_traj = [v for v in reversed(mask_dict_traj)]
+    return depth_image_traj, mask_dict_traj
 
 
 
@@ -342,7 +344,7 @@ def generate_sym(obs, actions,sym_step_idx, **args):
     start_depth_dict = obs[sym_step_idx]['depth']
     start_mask_dict = obs[sym_step_idx]['mask']
 
-    sym_depth_image_traj = local_sym_step(
+    sym_depth_image_traj, _ = local_sym_step(
         start_depth_dict, 
         start_mask_dict, 
         sym_actions,  
@@ -418,7 +420,7 @@ def generate_sym2(obs, origin_actions,
         start_depth_dict = obs[sym_step_idx]['depth']
         start_mask_dict = obs[sym_step_idx]['mask']
         reverse_action_short = reverse_actions[len(reverse_actions)-sym_step_idx: ]
-        sym_depth_image_traj3 = local_sym_step(
+        sym_depth_image_traj3, _ = local_sym_step(
             start_depth_dict, start_mask_dict, reverse_action_short, reverse=False, **args
         )
         # obs
