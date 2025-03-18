@@ -30,9 +30,9 @@ class SymObs(BaseWrapper):
         maxs = []
         background_mask = None
         for k, m in masks.items():
-            maxs.append(np.max(depth_img[m]))
+            # maxs.append(np.max(depth_img[m]))
             background_mask = m if background_mask is None else np.logical_or(background_mask, m)
-        background_depth = np.max(np.array(maxs))
+        background_depth = np.max(depth_img[background_mask])
         depth_img[np.logical_not(background_mask)] = background_depth + self._depth_offset
         depth_img = np.clip(depth_img,0, 255)
         depth_real  =depth_img / 255
