@@ -104,7 +104,8 @@ class PomdpEnv(BaseEnv):
     @property
     def instrinsic_K(self):
         proj = self.client.get_projection_matrix()
-        K = projection_matrix_to_K(proj, image_size=84)
+        obs = self.reset()
+        K = projection_matrix_to_K(proj, image_size=obs['image_new'].shape[0])
         return K
 
     def __getattr__(self, name):

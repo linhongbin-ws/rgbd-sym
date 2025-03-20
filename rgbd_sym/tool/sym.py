@@ -28,7 +28,7 @@ def get_sym_params(env_name):
         params['voxel_res'] = 84
         params['depth_real_min'] = 0
         params['depth_real_max'] = 1
-        params['depth_upsample'] = 3 # might need to tune
+        params['depth_upsample'] = 1 # might need to tune
         params['out_image_type'] = 'depth'
         params['out_background_encoding'] = 255
 

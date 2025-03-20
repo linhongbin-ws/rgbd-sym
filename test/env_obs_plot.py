@@ -13,7 +13,7 @@ env, env_config = make_env(tags=args.env_tag, seed=0)
 
 done = False
 obs = env.reset()
-# obs = env.reset()
+obs = env.reset()
 image_list = []
 original_depth_list = []
 cnt = 0
@@ -32,15 +32,15 @@ while not done:
 from matplotlib.pyplot import imshow, subplot, axis, cm, show
 import matplotlib.pyplot as plt
 import matplotlib
-
-image_list = image_list[:9]
+plt.rcParams['figure.figsize'] = [50, 40]
+image_list = image_list[:]
 for i in range(len(image_list)):
     ax = subplot(1, len(image_list), 1+i)
     imshow(image_list[i][:,:,0])
     plt.colorbar()
-original_depth_list = original_depth_list[:9]
+original_depth_list = original_depth_list[:]
 for i in range(len(original_depth_list)):
-    ax = subplot(2, len(original_depth_list), 1+i)
+    ax = subplot(2, len(original_depth_list), 1+i+len(original_depth_list))
     imshow(original_depth_list[i][:,:])
-    plt.colorbar()
+    # plt.colorbar()
 show()
