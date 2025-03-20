@@ -42,5 +42,5 @@ original_depth_list = original_depth_list[:]
 for i in range(len(original_depth_list)):
     ax = subplot(2, len(original_depth_list), 1+i+len(original_depth_list))
     imshow(original_depth_list[i][:,:])
-    # plt.colorbar()
+    plt.colorbar()
 show()

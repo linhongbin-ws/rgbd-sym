@@ -36,3 +36,9 @@ block_pick:
 
 drawer_open:
   task_name: drawer_open
+
+
+# other setting
+
+origin_obs:
+  wrapper.SymObs.skip: True

@@ -5,13 +5,14 @@ import cv2
 import gym
 
 class SymObs(BaseWrapper):
-    def __init__(self, env, depth_offset=15, sym_image_size=84, **kwargs):
+    def __init__(self, env, depth_offset=15, sym_image_size=84, skip=False, **kwargs):
         super().__init__(env, **kwargs)
         self._sym_args = get_sym_params(env_name=self.unwrapped.task)
         self._sym_args['K'] = self.unwrapped.instrinsic_K
         self._depth_offset = depth_offset
         self._sym_image_size  = sym_image_size
         self._new_obs_shape = None
+        self._skip = skip
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -24,26 +25,32 @@ class SymObs(BaseWrapper):
         return obs
 
     def _proc_obs(self, obs):
+        if self._skip:
+            depth_img = obs['image_new'][:,:,0]
+            masks = obs['mask']
+        else:
 
-        depth_img, masks = local_sym_step(obs['depth'],
-                                   obs['mask'], [],
-                                   **self.sym_args)
-        depth_img = depth_img[0]
-        masks = masks[0]
-        maxs = []
+            depth_img, masks = local_sym_step(obs['depth'],
+                                    obs['mask'], [],
+                                    **self.sym_args)
+            depth_img = depth_img[0]
+            masks = masks[0]
         background_mask = None
         for k, m in masks.items():
-            # maxs.append(np.max(depth_img[m]))
             background_mask = m if background_mask is None else np.logical_or(background_mask, m)
         background_depth = np.max(depth_img[background_mask])
         depth_img[np.logical_not(background_mask)] = background_depth + self._depth_offset
         depth_img = np.clip(depth_img,0, 255)
         depth_real  =depth_img / 255
 
-
+        if self._skip:
+            l = 150
+            depth_real = depth_real[300-l:300+l,300-l:300+l]
         depth_real = cv2.resize(depth_real, (self._sym_image_size, self._sym_image_size), interpolation=cv2.INTER_NEAREST)
         scalar_layer = cv2.resize(obs['image'][1, :, :], (self._sym_image_size, self._sym_image_size), interpolation=cv2.INTER_NEAREST)
         new_img = np.stack([depth_real, scalar_layer], axis=0)
+
+
 
         return new_img
     @property
