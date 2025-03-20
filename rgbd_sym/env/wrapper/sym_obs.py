@@ -2,6 +2,7 @@ from rgbd_sym.env.wrapper.base import BaseWrapper
 import numpy as np
 from rgbd_sym.tool.sym import local_sym_step, get_sym_params
 import cv2
+import gym
 
 class SymObs(BaseWrapper):
     def __init__(self, env, depth_offset=15, sym_image_size=84, **kwargs):
@@ -10,6 +11,7 @@ class SymObs(BaseWrapper):
         self._sym_args['K'] = self.unwrapped.instrinsic_K
         self._depth_offset = depth_offset
         self._sym_image_size  = sym_image_size
+        self._new_obs_shape = None
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -38,7 +40,7 @@ class SymObs(BaseWrapper):
         depth_img = np.clip(depth_img,0, 255)
         depth_real  =depth_img / 255
 
-        
+
         depth_real = cv2.resize(depth_real, (self._sym_image_size, self._sym_image_size), interpolation=cv2.INTER_NEAREST)
         scalar_layer = cv2.resize(obs['image'][1, :, :], (self._sym_image_size, self._sym_image_size), interpolation=cv2.INTER_NEAREST)
         new_img = np.stack([depth_real, scalar_layer], axis=0)
@@ -47,3 +49,10 @@ class SymObs(BaseWrapper):
     @property
     def sym_args(self):
         return self._sym_args
+    @property
+    def observation_space(self):
+        if self._new_obs_shape is None:
+            obs = self.reset()
+            self._new_obs_shape = obs['image'].shape
+        return gym.spaces.Box(0, 1, self._new_obs_shape,
+                              dtype=np.float64)
