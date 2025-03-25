@@ -1,11 +1,12 @@
 from rgbd_sym.env.wrapper.base import BaseWrapper
 import numpy as np
 from rgbd_sym.tool.sym import local_sym_step, get_sym_params
+from rgbd_sym.tool.common import scale_arr
 import cv2
 import gym
 
 class SymObs(BaseWrapper):
-    def __init__(self, env, depth_offset=15, sym_image_size=84, skip=False, **kwargs):
+    def __init__(self, env, depth_offset=5, sym_image_size=84, skip=False, **kwargs):
         super().__init__(env, **kwargs)
         self._sym_args = get_sym_params(env_name=self.unwrapped.task)
         self._sym_args['K'] = self.unwrapped.instrinsic_K
@@ -21,13 +22,22 @@ class SymObs(BaseWrapper):
 
     def reset(self):
         obs = self.env.reset()
-        obs['image'] = self._proc_obs(obs)
+        obs['image']  = self._proc_obs(obs)
         return obs
 
     def _proc_obs(self, obs):
         if self._skip:
-            depth_img = obs['image_new'][:,:,0]
             masks = obs['mask']
+            gripper_min =  np.min(obs['depth']["gripper"][obs['mask']["gripper"]])
+            new_d = {}
+            for k, _ in obs['mask'].items():
+                _d = obs['depth'][k].copy()
+                _d[obs['mask'][k]] = _d[obs['mask'][k]] - gripper_min
+                new_d[k] = _d
+
+            depth_img = None
+            for k,v in new_d.items():
+                depth_img = v if depth_img is None else np.minimum(depth_img, v)
         else:
 
             depth_img, masks = local_sym_step(obs['depth'],
@@ -47,10 +57,8 @@ class SymObs(BaseWrapper):
             l = 150
             depth_real = depth_real[300-l:300+l,300-l:300+l]
         depth_real = cv2.resize(depth_real, (self._sym_image_size, self._sym_image_size), interpolation=cv2.INTER_NEAREST)
-        scalar_layer = cv2.resize(obs['image'][1, :, :], (self._sym_image_size, self._sym_image_size), interpolation=cv2.INTER_NEAREST)
+        scalar_layer = np.ones(depth_real.shape, dtype=np.uint8) * obs['grasp_sig']
         new_img = np.stack([depth_real, scalar_layer], axis=0)
-
-
 
         return new_img
     @property

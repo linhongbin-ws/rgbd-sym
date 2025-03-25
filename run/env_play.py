@@ -46,22 +46,10 @@ for _ in tqdm(range(args.repeat)):
     if not args.no_vis:
         img = obs.copy()
         # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
-        if isinstance(img, dict):
-            img.pop("image", None)
-            img.pop("depth", None)
-            img.pop("depthR", None)
-            img.pop("imageR", None)
-        else:
-            if img.shape[0] <3:
-                img = np.transpose(img, axes=[2,1,0])
-                img = img * 255
-                img = img.astype(np.uint8)
-                pad_dim = 3 - img.shape[2]
 
-                img = np.concatenate(
-                    (img, np.zeros(img.shape[:2] + (pad_dim,),dtype=np.uint8)), axis=2
-                )
-                img = {"rgb": img}
+        img['image'] =  np.transpose(img['image'], axes=[1, 2, 0])
+        img['image'] = np.uint8(img['image']* 255)
+        img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
 
         img_break = env.cv_show(imgs=img)
         # img_break = env.cv_show(imgs=img)
@@ -110,8 +98,8 @@ for _ in tqdm(range(args.repeat)):
         # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
         # img.pop("depth", None)
         
-        print(img.keys())
-        print(info)
+        # print(img.keys())
+        # print(info)
         img['image'] =  np.transpose(img['image'], axes=[1, 2, 0])
         img['image'] = np.uint8(img['image']* 255)
         img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)

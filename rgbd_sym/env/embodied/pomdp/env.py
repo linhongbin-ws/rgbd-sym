@@ -63,23 +63,52 @@ class PomdpEnv(BaseEnv):
         return self.client.query_expert(self._eps_int)
 
     def _process_obs(self, _obs):
-        new_obs = _obs.copy()
-        new_obs["image"] = _obs['image']
-        obs_t = np.transpose(_obs['image'], axes=[1, 2, 0])
-        obs_t = np.concatenate(
-            [obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)], axis=2)
-        new_obs['image_new'] = np.uint8(obs_t*255)  # real depth to depth image
-        for k, v in new_obs["depth"].items():
-            new_obs["depth"][k][np.logical_not(new_obs["mask"][k])] = 1
+        new_obs = {}
+        new_obs['rgb'] = deepcopy(_obs['rgb'])
+        new_obs['mask'] = deepcopy(_obs['mask'])
         new_obs["depthR"] = deepcopy(_obs["depth"])
-        new_obs['depth'] = {k: np.uint8(
-            scale_arr(v, 0, 1, 0, 255)) for k, v in _obs['depth'].items()}
+
+        for k, v in new_obs["depthR"].items():
+            new_obs["depthR"][k][np.logical_not(new_obs["mask"][k])] = 1
+            if k is not "gripper":
+                if np.any(new_obs["mask"][k]):
+                    _d = np.max(new_obs["depthR"][k][new_obs["mask"][k]])
+                    new_obs["depthR"][k][new_obs["mask"][k]] = _d
+
+        if "object3" in new_obs["depthR"]:
+            new_obs["depthR"]["object3"] = new_obs["depthR"]["object2"] + 0.01
+
+        from matplotlib.pyplot import imshow, subplot, axis, cm, show
+        import matplotlib.pyplot as plt
+        import matplotlib
+        plt.rcParams['figure.figsize'] = [50, 40]
+        image_list = [v for _,v in new_obs["depthR"].items()]
+        for i in range(len(image_list)):
+            ax = subplot(1, len(image_list), 1+i)
+            imshow(image_list[i])
+            plt.colorbar()
+        show()
+            
+        new_obs['depth'] = {k: np.uint8(scale_arr(v, 0, 1, 0, 255)) for k, v in new_obs["depthR"].items()}
         gripper_d = np.mean(new_obs["depthR"]["gripper"][new_obs["mask"]["gripper"]])
-        # if "object2" in new_obs["depthR"]:
         object_d = np.mean(new_obs["depthR"]["object2"][new_obs["mask"]["object2"]])
+        new_obs['z_distance'] = gripper_d - object_d
+        new_obs['grasp_sig'] =  _obs['image'][1,0,0]
+
+        # obs_t = np.transpose(_obs['image'], axes=[1, 2, 0])
+        # obs_t = np.concatenate(
+        #     [obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)], axis=2)
+        # new_obs['image_new'] = np.uint8(obs_t*255)  # real depth to depth image
+        # for k, v in new_obs["depth"].items():
+        #     new_obs["depth"][k][np.logical_not(new_obs["mask"][k])] = 1
+        # new_obs["depthR"] = deepcopy(_obs["depth"])
+        # new_obs['depth'] = {k: np.uint8(scale_arr(v, 0, 1, 0, 255)) for k, v in _obs['depth'].items()}
+        # gripper_d = np.mean(new_obs["depthR"]["gripper"][new_obs["mask"]["gripper"]])
+        # if "object2" in new_obs["depthR"]:
+        # object_d = np.mean(new_obs["depthR"]["object2"][new_obs["mask"]["object2"]])
         # else:
         #     object_d = 0
-        new_obs['z_distance'] = gripper_d - object_d
+        # new_obs['z_distance'] = gripper_d - object_d
         return new_obs
 
     @property
@@ -105,7 +134,7 @@ class PomdpEnv(BaseEnv):
     def instrinsic_K(self):
         proj = self.client.get_projection_matrix()
         obs = self.reset()
-        K = projection_matrix_to_K(proj, image_size=obs['image_new'].shape[0])
+        K = projection_matrix_to_K(proj, image_size=obs['depthR']['gripper'].shape[0])
         return K
 
     def __getattr__(self, name):

@@ -6,16 +6,20 @@ import numpy as np
 import time
 parser = argparse.ArgumentParser()
 parser.add_argument('--env-tag', type=str, nargs='+', default=['block_pick'])
+parser.add_argument('--seed', type=int, default=0)
 args = parser.parse_args()
+
 
 env, env_config = make_env(tags=args.env_tag, seed=0)
 # env = ActionOracle(env, device="script")
+for i in range(args.seed):
+    obs = env.reset()
 
 done = False
 obs = env.reset()
 obs = env.reset()
 image_list = []
-original_depth_list = []
+# original_depth_list = []
 cnt = 0
 while not done:
     action = env.get_oracle_action()
@@ -25,7 +29,7 @@ while not done:
     img = np.uint8(img* 255)
     img = np.concatenate((img, np.zeros(img.shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
     image_list.append(img)
-    original_depth_list.append(obs['image_new'][:,:,0])
+    # original_depth_list.append(obs['orgin_depth_image'])
     cnt+=1
     print(cnt)
 
@@ -38,9 +42,9 @@ for i in range(len(image_list)):
     ax = subplot(1, len(image_list), 1+i)
     imshow(image_list[i][:,:,0])
     plt.colorbar()
-original_depth_list = original_depth_list[:]
-for i in range(len(original_depth_list)):
-    ax = subplot(2, len(original_depth_list), 1+i+len(original_depth_list))
-    imshow(original_depth_list[i][:,:])
-    plt.colorbar()
+# original_depth_list = original_depth_list[:]
+# for i in range(len(original_depth_list)):
+#     ax = subplot(2, len(original_depth_list), 1+i+len(original_depth_list))
+#     imshow(original_depth_list[i][:,:])
+#     plt.colorbar()
 show()
