@@ -43,6 +43,7 @@ def get_depth_image(depth_dict):
 for _ in tqdm(range(args.repeat)):
     done = False
     obs = env.reset()
+    print(obs.keys())
     if not args.no_vis:
         img = obs.copy()
         # img['image'] = np.concatenate((img['image'], np.zeros(img['image'].shape[:2]+(1,),dtype=np.uint8)), axis=2, dtype=np.uint8)
@@ -73,7 +74,7 @@ for _ in tqdm(range(args.repeat)):
 
         print("reward:", reward, "done:", done,)
 
-        print(obs)
+        # print(obs)
         img = obs.copy()
 
         # if isinstance(img, dict):

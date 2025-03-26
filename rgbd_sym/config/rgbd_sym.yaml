@@ -1,9 +1,12 @@
 default:
   seed: 0
   wrapper:
-    pipeline: ['VirtualClutch',"SymObs"]
+    pipeline: ['VirtualClutch',"SymObs","GymRegularizer"]
     VirtualClutch: { start: 0 }
     SymObs: {skip: False}
+    GymRegularizer: {
+      obs_key: ['mask','depth', 'z_distance',  'image'],
+    }
   task_name: block_pick
   embodied_name: PomdpEnv
   embodied:

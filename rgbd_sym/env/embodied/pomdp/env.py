@@ -78,16 +78,16 @@ class PomdpEnv(BaseEnv):
         if "object3" in new_obs["depthR"]:
             new_obs["depthR"]["object3"] = new_obs["depthR"]["object2"] + 0.01
 
-        from matplotlib.pyplot import imshow, subplot, axis, cm, show
-        import matplotlib.pyplot as plt
-        import matplotlib
-        plt.rcParams['figure.figsize'] = [50, 40]
-        image_list = [v for _,v in new_obs["depthR"].items()]
-        for i in range(len(image_list)):
-            ax = subplot(1, len(image_list), 1+i)
-            imshow(image_list[i])
-            plt.colorbar()
-        show()
+        # from matplotlib.pyplot import imshow, subplot, axis, cm, show
+        # import matplotlib.pyplot as plt
+        # import matplotlib
+        # plt.rcParams['figure.figsize'] = [50, 40]
+        # image_list = [v for _,v in new_obs["depthR"].items()]
+        # for i in range(len(image_list)):
+        #     ax = subplot(1, len(image_list), 1+i)
+        #     imshow(image_list[i])
+        #     plt.colorbar()
+        # show()
             
         new_obs['depth'] = {k: np.uint8(scale_arr(v, 0, 1, 0, 255)) for k, v in new_obs["depthR"].items()}
         gripper_d = np.mean(new_obs["depthR"]["gripper"][new_obs["mask"]["gripper"]])
