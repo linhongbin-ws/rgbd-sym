@@ -191,11 +191,7 @@ def action2transformdict(action, delta_pos, delta_rot, reverse=False, ):
                                      [0, 0, 0],
                                      rot_type="euler")
     transform_dict['object2'] = transform_dict['object1'].copy()
-    transform_dict['object3'] = getT([-delta_pos*action[1]*sign,
-                                      -delta_pos*action[2]*sign,
-                                      0],
-                                     [0, 0, 0],
-                                     rot_type="euler")
+    transform_dict['object3'] = transform_dict['object1'].copy()
     return transform_dict
 
 
@@ -362,6 +358,8 @@ def generate_sym2(obs, origin_actions,
                     height_ratio =1,
                     screw_angle = 0,
                     sym_z_distance_thres = 0.092,
+                    depth_offset = 5,
+                    sym_image_size = 84,
                   **args):
     
     for sym_step_idx, _o in enumerate(obs):
@@ -420,14 +418,31 @@ def generate_sym2(obs, origin_actions,
         start_depth_dict = obs[sym_step_idx]['depth']
         start_mask_dict = obs[sym_step_idx]['mask']
         reverse_action_short = reverse_actions[len(reverse_actions)-sym_step_idx: ]
-        sym_depth_image_traj3, _ = local_sym_step(
+        sym_depth_image_traj3, sym_masks_traj3 = local_sym_step(
             start_depth_dict, start_mask_dict, reverse_action_short, reverse=False, **args
         )
         # obs
         sym_depth_image_traj3 = [s for s in reversed(sym_depth_image_traj3)]
+        sym_masks_traj3 = [s for s in reversed(sym_masks_traj3)]
         new_obs = deepcopy(obs)
         for _idx, o in enumerate(sym_depth_image_traj3):
-            new_obs[_idx]['image'][0,:,:] = o
+            depth_img = sym_depth_image_traj3[_idx]
+            masks = sym_masks_traj3[_idx]
+            background_mask = None
+            for k, m in masks.items():
+                background_mask = m if background_mask is None else np.logical_or(background_mask, m)
+            background_depth = np.max(depth_img[background_mask])
+            depth_img[np.logical_not(background_mask)] = background_depth + depth_offset
+            depth_img = np.clip(depth_img,0, 255)
+            depth_real  =depth_img / 255
+
+            depth_real = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_NEAREST)
+            # scalar_layer =
+            # new_img = np.stack([depth_real, scalar_layer], axis=0)
+            new_obs[_idx]['image'][0,:,:] = depth_real
+
+
+
         new_sym_obss.append(new_obs)
         # actions
         new_sym_actions = deepcopy(origin_actions)

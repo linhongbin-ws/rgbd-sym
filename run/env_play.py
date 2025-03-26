@@ -75,6 +75,7 @@ for _ in tqdm(range(args.repeat)):
         print("reward:", reward, "done:", done,)
 
         # print(obs)
+        print("z_distance: ", obs['z_distance'])
         img = obs.copy()
 
         # if isinstance(img, dict):

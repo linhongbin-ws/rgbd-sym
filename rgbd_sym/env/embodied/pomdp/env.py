@@ -70,19 +70,20 @@ class PomdpEnv(BaseEnv):
 
         for k, v in new_obs["depthR"].items():
             new_obs["depthR"][k][np.logical_not(new_obs["mask"][k])] = 1
-            if k is not "gripper":
+            if not k in ["gripper", "object3"]:
                 if np.any(new_obs["mask"][k]):
                     _d = np.max(new_obs["depthR"][k][new_obs["mask"][k]])
                     new_obs["depthR"][k][new_obs["mask"][k]] = _d
 
         if "object3" in new_obs["depthR"]:
-            new_obs["depthR"]["object3"] = new_obs["depthR"]["object2"] + 0.01
+            new_obs["depthR"]["object3"][new_obs["mask"]["object3"]] = new_obs["depthR"]["object2"][new_obs["mask"]["object2"]][0] + 0.1
 
         # from matplotlib.pyplot import imshow, subplot, axis, cm, show
         # import matplotlib.pyplot as plt
         # import matplotlib
         # plt.rcParams['figure.figsize'] = [50, 40]
         # image_list = [v for _,v in new_obs["depthR"].items()]
+        # image_list.append(new_obs["mask"]["object3"])
         # for i in range(len(image_list)):
         #     ax = subplot(1, len(image_list), 1+i)
         #     imshow(image_list[i])
