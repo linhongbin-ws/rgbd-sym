@@ -12,15 +12,39 @@ from copy import deepcopy
 
 size = 84
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--env-tag', type=str, nargs='+', default=['block_pick'])
+parser.add_argument('--traj-num', type=int, default=None)
+parser.add_argument('--radius', type=float, default=None)
+parser.add_argument('--height', type=float, default=None)
+parser.add_argument('--screw', type=float, default=None)
+parser.add_argument('--seed', type=int, default=0)
+args = parser.parse_args()
 
-env, env_config = make_env(tags=['block_pick'], seed=0)
+
+env, env_config = make_env(tags=args.env_tag, seed=0)
+# env = ActionOracle(env, device="script")
+for i in range(args.seed):
+    obs = env.reset()
+
 obs = env.reset()
-# obs = env.reset()
 proj_matrix = env.get_projection_matrix()
 K = projection_matrix_to_K(proj_matrix, image_size=size)
 print("K", K)
 
-args = env.sym_args
+sym_args = env.sym_args
+if args.traj_num is not None:
+    sym_args['traj_nums'] = args.traj_num
+if args.radius is not None:
+    sym_args['radius_ratio'] = args.radius
+if args.height is not None:
+    sym_args['height_ratio'] = args.height
+if args.screw is not None:
+    sym_args['screw_angle'] = args.screw
+
+# sym_args['radius_ratio'] = 1
+# sym_args['height_ratio'] = 1
+# sym_args['screw_angle'] =  0
 # generate ground truth trajectory
 origin_actions = []
 obss_origin = [obs]
@@ -30,13 +54,10 @@ while not done:
     origin_actions.append(action)
     obs, reward, done, info = env.step(action)
     obss_origin.append(obs)
-args['traj_nums']   = 5 
-args['radius_ratio'] = 1
-args['height_ratio'] = 1
-args['screw_angle'] =  0
+
     
 new_obss, new_actionss = generate_sym2(obss_origin, origin_actions, 
-              **args)
+              **sym_args)
 
 
 imgss = []
@@ -51,8 +72,8 @@ plot_img(imgss)
 points_mats = []
 trajTs = actions2Ts(
     [-a for a in reversed(origin_actions)],
-    action_delta_pos=args["action_delta_pos"],
-    action_delta_rot=args["action_delta_rot"],
+    action_delta_pos=sym_args["action_delta_pos"],
+    action_delta_rot=sym_args["action_delta_rot"],
 )
 points_mats = []
 pc_mat = {}
@@ -66,8 +87,8 @@ points_mats.append(pc_mat)
 for i, new_actions in enumerate(new_actionss):
     new_trajTs = actions2Ts(
     [-a for a in reversed(new_actions)],
-    action_delta_pos=args["action_delta_pos"],
-    action_delta_rot=args["action_delta_rot"],
+    action_delta_pos=sym_args["action_delta_pos"],
+    action_delta_rot=sym_args["action_delta_rot"],
     )
     pc_mat = {}
     pc_mat["mat"] = np.array([[t[0][3], t[1][3], t[2][3]] for t in new_trajTs])
