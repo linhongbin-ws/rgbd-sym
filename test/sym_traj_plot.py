@@ -18,6 +18,8 @@ parser.add_argument('--traj-num', type=int, default=None)
 parser.add_argument('--radius', type=float, default=None)
 parser.add_argument('--height', type=float, default=None)
 parser.add_argument('--screw', type=float, default=None)
+parser.add_argument('--rot', type=float, default=None)
+
 parser.add_argument('--seed', type=int, default=0)
 args = parser.parse_args()
 
@@ -41,6 +43,8 @@ if args.height is not None:
     sym_args['height_ratio'] = args.height
 if args.screw is not None:
     sym_args['screw_angle'] = args.screw
+if args.rot is not None:
+    sym_args['rot_noise_ratio'] = args.rot
 
 # sym_args['radius_ratio'] = 1
 # sym_args['height_ratio'] = 1
@@ -55,9 +59,13 @@ while not done:
     obs, reward, done, info = env.step(action)
     obss_origin.append(obs)
 
-    
+
 new_obss, new_actionss = generate_sym2(obss_origin, origin_actions, 
               **sym_args)
+for i in range(len(origin_actions)):
+    print(f"step{i}")
+    print("origin action", origin_actions[i])
+    print("retrace action", new_actionss[0][i])
 
 
 imgss = []

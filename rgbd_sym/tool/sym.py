@@ -354,6 +354,10 @@ def generate_sym(obs, actions,sym_step_idx, **args):
     
     return new_obs
 
+
+def inv_a(a):
+    return np.array([a[0],-a[1],-a[2],-a[3],-a[4]])
+
 def generate_sym2(obs, origin_actions,
                   traj_nums=20, 
                     radius_ratio =1,
@@ -370,7 +374,7 @@ def generate_sym2(obs, origin_actions,
             break
     # generate pose of origin trajectory
     trajTs = actions2Ts(
-        [-a for a in reversed(origin_actions)],
+        [inv_a(a) for a in reversed(origin_actions)],
         action_delta_pos=args["action_delta_pos"],
         action_delta_rot=args["action_delta_rot"],
     )
@@ -404,12 +408,12 @@ def generate_sym2(obs, origin_actions,
     for new_trajTs in new_trajTss:
         _Ts = deepcopy(new_trajTs)
         interval_oris = [np.clip(np.random.uniform(low=-1,high=1)*rot_noise_ratio-x[4], -1, 1) for x in reversed(origin_actions)]
-
+        interval_gripper_states = [x[0] for x in reversed(origin_actions)]
         reverse_actions, exceed = Ts2actions(
             origin_T=_Ts[0],
             interval_Ts=_Ts[1:],
             action_delta_pos=args["action_delta_pos"],
-            interval_gripper_states=np.zeros(len(_Ts[1:])),
+            interval_gripper_states=interval_gripper_states,
             interval_oris=interval_oris,
         )
         # print(len(interval_oris))
@@ -453,7 +457,7 @@ def generate_sym2(obs, origin_actions,
         new_sym_obss.append(new_obs)
         # actions
         new_sym_actions = deepcopy(origin_actions)
-        action_short = [-a for a in reversed(reverse_action_short)]
+        action_short = [inv_a(a) for a in reversed(reverse_action_short)]
         for _idx, a in enumerate(action_short):
             new_sym_actions[_idx] = a
         new_sym_actionss.append(new_sym_actions)
