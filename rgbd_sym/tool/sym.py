@@ -368,16 +368,27 @@ def generate_sym2(obs, origin_actions,
                     depth_offset = 5,
                     sym_image_size = 84,
                   **args):
-    
-    for sym_step_idx, _o in enumerate(obs):
+    sym_step_idxs=[]
+    for _i, _o in enumerate(obs):
         if np.abs(_o["z_distance"]) < sym_z_distance_thres:
+            sym_step_idxs.append(_i)
             break
+    for _i in range(1, len(obs)):
+        if obs[_i]["gripper_close"] != obs[_i-1]["gripper_close"]:
+            _i -=1
+            sym_step_idxs.append(_i)
+            break
+    
+    sym_step_idx = np.min(np.array(sym_step_idxs))
+
+
     # generate pose of origin trajectory
     trajTs = actions2Ts(
         [inv_a(a) for a in reversed(origin_actions)],
         action_delta_pos=args["action_delta_pos"],
         action_delta_rot=args["action_delta_rot"],
     )
+    
 
     # generate poses of symmetric trajectory
     new_trajTss = []

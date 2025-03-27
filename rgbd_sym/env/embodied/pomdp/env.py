@@ -37,6 +37,13 @@ class PomdpEnv(BaseEnv):
         self.timestep = 0
         self._eps_int+=1
         obs = self.client.reset()
+        if self.task in ["block_pull", "block_pick"]:
+            obs,_,_,_ = self.client.step(np.array([1.0, 0.0, 0.0, 0.0, 0.0]))
+            self._gripper_close = False
+        else:
+            obs,_,_,_ = self.client.step(np.array([-1.0, 0.0, 0.0, 0.0, 0.0]))
+            self._gripper_close = True
+        obs['gripper_close'] = 1 if self._gripper_close else 0
         obs = self._process_obs(obs)
         self._prv_obs = obs
         return obs
@@ -51,7 +58,14 @@ class PomdpEnv(BaseEnv):
             info = {}
             info["success"] = False
         else:
+            if action[0]>0:
+                _action[0] = 1
+                self._gripper_close = False
+            else:
+                _action[0] = -1
+                self._gripper_close = True
             obs, reward, done, info = self.client.step(_action)
+            obs['gripper_close'] = 1 if self._gripper_close else 0
             obs = self._process_obs(obs)
 
         return obs, reward, done, info
@@ -67,6 +81,7 @@ class PomdpEnv(BaseEnv):
         new_obs['rgb'] = deepcopy(_obs['rgb'])
         new_obs['mask'] = deepcopy(_obs['mask'])
         new_obs["depthR"] = deepcopy(_obs["depth"])
+        new_obs["gripper_close"] =  deepcopy(_obs["gripper_close"])
 
         for k, v in new_obs["depthR"].items():
             new_obs["depthR"][k][np.logical_not(new_obs["mask"][k])] = 1

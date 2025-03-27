@@ -5,7 +5,7 @@ default:
     VirtualClutch: { start: 0 }
     SymObs: {skip: False}
     GymRegularizer: {
-      obs_key: ['mask','depth', 'z_distance',  'image'],
+      obs_key: ['mask','depth', 'z_distance',  'image','gripper_close'],
     }
   task_name: block_pick
   embodied_name: PomdpEnv
