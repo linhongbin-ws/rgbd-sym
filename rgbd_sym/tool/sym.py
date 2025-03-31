@@ -39,6 +39,7 @@ def get_sym_params(env_name):
         params['sym_z_distance_thres'] = 0.092
 
         params['rot_noise_ratio'] = 0.3
+        params['gripper_state_noise'] = False
 
         # if env_name in "block_push":
         #     params['pc_range'] = 100
@@ -364,6 +365,7 @@ def generate_sym2(obs, origin_actions,
                     height_ratio =1,
                     screw_angle = 0,
                     rot_noise_ratio = 0.5,
+                    gripper_state_noise = True,
                     sym_z_distance_thres = 0.092,
                     depth_offset = 5,
                     sym_image_size = 84,
@@ -419,7 +421,11 @@ def generate_sym2(obs, origin_actions,
     for new_trajTs in new_trajTss:
         _Ts = deepcopy(new_trajTs)
         interval_oris = [np.clip(np.random.uniform(low=-1,high=1)*rot_noise_ratio-x[4], -1, 1) for x in reversed(origin_actions)]
+
+        interval_gripper_states = []
+
         interval_gripper_states = [x[0] for x in reversed(origin_actions)]
+
         reverse_actions, exceed = Ts2actions(
             origin_T=_Ts[0],
             interval_Ts=_Ts[1:],
@@ -471,6 +477,20 @@ def generate_sym2(obs, origin_actions,
         action_short = [inv_a(a) for a in reversed(reverse_action_short)]
         for _idx, a in enumerate(action_short):
             new_sym_actions[_idx] = a
+
+        
+        if gripper_state_noise:
+            new_as = []
+            for x in new_sym_actions:
+                if x[0]>0:
+                    new_a = x.copy()
+                    new_a[0] = np.random.uniform(low=0.01,high=1)
+                else:
+                    new_a = x.copy()
+                    new_a[0] = np.random.uniform(low=-1,high=-0.01)
+                new_as.append(new_a) 
+            new_sym_actions = new_as
+        
         new_sym_actionss.append(new_sym_actions)
 
     return new_sym_obss, new_sym_actionss
