@@ -38,7 +38,7 @@ def get_sym_params(env_name):
         params['screw_angle'] =  np.random.uniform(0,10)
         params['sym_z_distance_thres'] = 0.092
 
-        params['rot_noise_ratio'] = 0.3
+        params['rot_noise_ratio'] = 1
         params['gripper_state_noise'] = False
 
         # if env_name in "block_push":
