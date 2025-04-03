@@ -6,7 +6,7 @@ import cv2
 import gym
 
 class SymObs(BaseWrapper):
-    def __init__(self, env, depth_offset=5, sym_image_size=84, skip=False, **kwargs):
+    def __init__(self, env, depth_offset=40, sym_image_size=84, skip=False, **kwargs):
         super().__init__(env, **kwargs)
         self._sym_args = get_sym_params(env_name=self.unwrapped.task)
         self._sym_args['K'] = self.unwrapped.instrinsic_K
@@ -56,6 +56,8 @@ class SymObs(BaseWrapper):
         if self._skip:
             l = 150
             depth_real = depth_real[300-l:300+l,300-l:300+l]
+        else:
+            depth_real =  scale_arr(depth_real, 0, 1, 0, 0.3)
         depth_real = cv2.resize(depth_real, (self._sym_image_size, self._sym_image_size), interpolation=cv2.INTER_NEAREST)
         scalar_layer = np.ones(depth_real.shape, dtype=np.uint8) * obs['grasp_sig']
         new_img = np.stack([depth_real, scalar_layer], axis=0)
