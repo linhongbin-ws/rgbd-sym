@@ -41,7 +41,7 @@ class PomdpEnv(BaseEnv):
             obs,_,_,_ = self.client.step(np.array([1.0, 0.0, 0.0, 0.0, 0.0]))
             self._gripper_close = False
         else:
-            obs,_,_,_ = self.client.step(np.array([-1.0, 0.0, 0.0, 0.0, 0.0]))
+            obs,_,_,_ = self.client.step(np.array([-0.3, 0.0, 0.0, 0.0, 0.0]))
             self._gripper_close = True
         obs['gripper_close'] = 1 if self._gripper_close else 0
         obs = self._process_obs(obs)
@@ -62,7 +62,7 @@ class PomdpEnv(BaseEnv):
                 _action[0] = 1
                 self._gripper_close = False
             else:
-                _action[0] = -1
+                _action[0] = -0.3
                 self._gripper_close = True
             obs, reward, done, info = self.client.step(_action)
             obs['gripper_close'] = 1 if self._gripper_close else 0
