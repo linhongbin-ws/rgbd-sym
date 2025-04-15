@@ -8,19 +8,19 @@ env:
 
 train:
   # 100*50 = 50k steps
-  num_iters: 800 # number meta-training iterates
+  num_iters: 3200 # number meta-training iterates
   num_init_rollouts_pool: 20 # before training
   num_expert_rollouts_pool: 80 # before training
   num_rollouts_per_iter: 1
 
   num_updates_per_iter: 1.0
   # buffer params
-  buffer_size: 1e5
+  buffer_size: 3e5
   batch_size: 32 # to tune based on sampled_seq_len
   sampled_seq_len: -1 # -1 is all, or positive integer
   sample_weight_baseline: 0.0
   buffer_type: seq_rot_center
-  num_aug_episode: 4
+  num_aug_episode: 0
 
 eval:
   log_interval: 10 # num of iters

@@ -19,7 +19,7 @@ train:
   sampled_seq_len: -1 # -1 is all, or positive integer
   sample_weight_baseline: 0.0
   buffer_type: seq_rot_center
-  num_aug_episode: 4
+  num_aug_episode: 0
 
 eval:
   log_interval: 5 # num of iters
