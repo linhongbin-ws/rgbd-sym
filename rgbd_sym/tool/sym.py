@@ -367,7 +367,7 @@ def generate_sym2(obs, origin_actions,
                     rot_noise_ratio = 0.5,
                     gripper_state_noise = True,
                     sym_z_distance_thres = 0.092,
-                    depth_offset = 5,
+                    depth_offset = 40,
                     sym_image_size = 84,
                   **args):
     sym_step_idxs=[]
@@ -463,6 +463,8 @@ def generate_sym2(obs, origin_actions,
             depth_img[np.logical_not(background_mask)] = background_depth + depth_offset
             depth_img = np.clip(depth_img,0, 255)
             depth_real  =depth_img / 255
+
+            depth_real =  scale_arr(depth_real, 0, 1, 0, 0.3)
 
             depth_real = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_NEAREST)
             # scalar_layer =
