@@ -37,6 +37,7 @@ def get_sym_params(env_name):
         params['height_ratio'] = np.random.uniform(0.75,1.3)
         params['screw_angle'] =  np.random.uniform(0,10)
         params['sym_z_distance_thres'] = 0.092
+        params['transl_noise_ratio'] = 0
 
         params['rot_noise_ratio'] = 1
         params['gripper_state_noise'] = False
@@ -433,6 +434,15 @@ def generate_sym2(obs, origin_actions,
             interval_gripper_states=interval_gripper_states,
             interval_oris=interval_oris,
         )
+
+        _as = []
+        for _a in reverse_actions:
+            _b = _a.copy()
+            _b[1:4] = _b[1:4]+np.random.uniform(low=-1,high=1)*args["transl_noise_ratio"]
+            _b = np.clip(_b, -1, 1)
+            _as.append(_b)
+        reverse_actions = _as
+
         # print(len(interval_oris))
         # print(len(reverse_actions))
         reverse_actions = [a for a in reversed(reverse_actions)]
