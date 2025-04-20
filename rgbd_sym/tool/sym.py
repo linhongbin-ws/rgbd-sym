@@ -34,8 +34,8 @@ def get_sym_params(env_name):
 
         params['traj_nums']   = 4 
         params['radius_ratio'] = np.random.uniform(0.75,1)
-        params['height_ratio'] = np.random.uniform(0.75,1.3)
-        params['screw_angle'] =  np.random.uniform(0,10)
+        params['height_ratio'] = np.random.uniform(0.75,1)
+        params['screw_angle'] =  np.random.uniform(0,0)
         params['sym_z_distance_thres'] = 0.092
         params['transl_noise_ratio'] = 0
 
