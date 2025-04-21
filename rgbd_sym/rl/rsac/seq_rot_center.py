@@ -19,8 +19,9 @@ class SeqRotBufferCenter(SeqBuffer):
         sampled_seq_len: int,
         sample_weight_baseline: float,
         num_aug_episode: int,
-        sym_eps_expert=4,
-        sym_eps_normal=4,
+        sym_eps_expert,
+        sym_eps_normal,
+        sym_args,
         **kwargs,
     ):
 
@@ -35,11 +36,10 @@ class SeqRotBufferCenter(SeqBuffer):
         self._save_image = False
         self._sym_eps_expert = sym_eps_expert
         self._sym_eps_normal = sym_eps_normal
+        self._sym_args = sym_args
 
     def add_episode(self, observations, actions, rewards,
-                    terminals, next_observations, expert_masks,obs_dicts, 
-                    K,
-                    env_id):
+                    terminals, next_observations, expert_masks,obs_dicts,):
 
         if observations.shape[0] >= 2:
 
@@ -64,11 +64,16 @@ class SeqRotBufferCenter(SeqBuffer):
                 sym_eps = self._sym_eps_normal
             
             if sym_eps > 0:
-                args = get_sym_params(env_id)
-                args['K'] = K
                 # args = sym_args.copy()
+                args = self._sym_args.copy()
                 args['traj_nums'] = sym_eps
-                new_obss, new_actionss = generate_sym2(obs_dicts, actions, **args)
+                traj_batch = args['traj_batch']
+                new_obss = []
+                new_actionss = []
+                for _i in range(traj_batch):
+                    _obss, _actionss = generate_sym2(obs_dicts, actions, **args)
+                    new_obss.extend(_obss)
+                    new_actionss.extend(_actionss)
                 print(f"adding {len(new_obss)} sym episode")
                 for idx in range(len(new_obss)):
                     new_obs = new_obss[idx]

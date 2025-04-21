@@ -44,7 +44,10 @@ class Learner:
                  prefix, ckpt_dir, cfg_file, 
                  sym_expert,
                  sym_normal,
+                 FLAGS,
                  **kwargs):
+        
+        self._FLAGS = FLAGS
         self.seed = seed
         self.group_prefix = prefix
 
@@ -151,7 +154,26 @@ class Learner:
                 raise NotImplementedError
             self.train_env, env_config = make_env(tags=env_tag, seed=self.seed)
             from rgbd_sym.tool.sym import get_sym_params
-            # self.sym_args['K'] = self.train_env.unwrapped.instrinsic_K
+
+
+            self._sym_args = get_sym_params(self.env_id)
+            self._sym_args['K'] = self.train_env.unwrapped.instrinsic_K
+
+
+
+            update_args = ['radius_ratio_low', 'radius_ratio_high', 'height_ratio_low','height_ratio_high',
+                           'screw_angle_low','screw_angle_high','transl_noise_ratio','rot_noise_ratio','traj_batch']
+
+            for k in update_args:
+                v = getattr(self._FLAGS, k)
+                if v is not None:
+                    self._sym_args[k] = v
+
+
+
+            print("sym_args:")
+            for _k, _v in self._sym_args.items():
+                print(f"                   {_k}: {_v}")
 
             # self.train_env.seed = self.seed
             # self.train_env.action_space.np_random.seed(self.seed)  # crucial
@@ -334,6 +356,7 @@ class Learner:
                 observation_type=self.train_env.observation_space.dtype,
                 sym_eps_expert=self._sym_expert,
                 sym_eps_normal=self._sym_normal,
+                sym_args = self._sym_args,
             )
 
         # load buffer from checkpoint
@@ -688,9 +711,6 @@ class Learner:
                         ),  # (L, dim)
                         expert_masks=np.ones_like(term_list).reshape(-1, 1),  # (L, 1)
                         obs_dicts = obs_dicts,
-                        K=self.train_env.unwrapped.instrinsic_K,
-                        env_id=self.env_id,
-                        # sym_args=self.sym_args,
                     )
 
                     print(
@@ -828,8 +848,6 @@ class Learner:
                     ),  # (L, dim)
                     expert_masks=np.zeros_like(term_list).reshape(-1, 1),  # (L, 1)
                     obs_dicts = obs_dicts,
-                    K=self.train_env.unwrapped.instrinsic_K,
-                    env_id=self.env_id,
                 )
 
                 if success:

@@ -31,15 +31,22 @@ def get_sym_params(env_name):
         params['depth_upsample'] = 1 # might need to tune
         params['out_image_type'] = 'depth'
         params['out_background_encoding'] = 255
-
-        params['traj_nums']   = 4 
-        params['radius_ratio'] = np.random.uniform(0.75,1)
-        params['height_ratio'] = np.random.uniform(0.75,1)
-        params['screw_angle'] =  np.random.uniform(0,0)
         params['sym_z_distance_thres'] = 0.092
-        params['transl_noise_ratio'] = 0
+        params['traj_nums']   = 4 
+        params['traj_batch']   = 1 
 
+        params['radius_ratio_low'] = 0.75
+        params['radius_ratio_high'] = 1
+
+        params['height_ratio_low'] = 0.75
+        params['height_ratio_high'] = 1
+
+        params['screw_angle_low'] = 0
+        params['screw_angle_high'] = 0
+
+        params['transl_noise_ratio'] = 0
         params['rot_noise_ratio'] = 1
+
         params['gripper_state_noise'] = False
 
         # if env_name in "block_push":
@@ -362,15 +369,24 @@ def inv_a(a):
 
 def generate_sym2(obs, origin_actions,
                   traj_nums=20, 
-                    radius_ratio =1,
-                    height_ratio =1,
-                    screw_angle = 0,
+                    radius_ratio_low =1,
+                    radius_ratio_high =1,
+                    height_ratio_low =1,
+                    height_ratio_high =1,
+                    screw_angle_low = 0,
+                    screw_angle_high = 0,
                     rot_noise_ratio = 0.5,
+                    transl_noise_ratio = 0,
                     gripper_state_noise = True,
                     sym_z_distance_thres = 0.092,
                     depth_offset = 40,
                     sym_image_size = 84,
                   **args):
+    
+    radius_ratio = np.random.uniform(radius_ratio_low,radius_ratio_high)
+    height_ratio = np.random.uniform(height_ratio_low,height_ratio_high)
+    screw_angle = np.random.uniform(screw_angle_low, screw_angle_high)
+    
     sym_step_idxs=[]
     for _i, _o in enumerate(obs):
         if np.abs(_o["z_distance"]) < sym_z_distance_thres:
@@ -438,7 +454,7 @@ def generate_sym2(obs, origin_actions,
         _as = []
         for _a in reverse_actions:
             _b = _a.copy()
-            _b[1:4] = _b[1:4]+np.random.uniform(low=-1,high=1)*args["transl_noise_ratio"]
+            _b[1:4] = _b[1:4]+np.random.uniform(low=-1,high=1)*transl_noise_ratio
             _b = np.clip(_b, -1, 1)
             _as.append(_b)
         reverse_actions = _as

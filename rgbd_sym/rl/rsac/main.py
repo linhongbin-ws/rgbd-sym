@@ -46,6 +46,18 @@ flags.DEFINE_string("prefix", None, "prefix of wandb group")
 flags.DEFINE_boolean("debug", False, "debug mode")
 flags.DEFINE_boolean("replay", False, "replay/train mode")
 
+
+# sym args
+flags.DEFINE_float("radius_ratio_low", None, "")
+flags.DEFINE_float("radius_ratio_high", None, "")
+flags.DEFINE_float("height_ratio_low", None, "")
+flags.DEFINE_float("height_ratio_high", None, "")
+flags.DEFINE_float("screw_angle_low", None, "")
+flags.DEFINE_float("screw_angle_high", None, "")
+flags.DEFINE_float("transl_noise_ratio", None, "")
+flags.DEFINE_float("rot_noise_ratio", None, "")
+flags.DEFINE_integer("traj_batch", None, "")
+
 flags.FLAGS(sys.argv)
 yaml = YAML()
 v = yaml.load(open(FLAGS.cfg))
@@ -188,6 +200,7 @@ learner = Learner(
     cfg_file=FLAGS.cfg,
     sym_expert=FLAGS.sym_expert,
     sym_normal=FLAGS.sym_normal,
+    FLAGS = FLAGS
 )
 
 logger.log(
