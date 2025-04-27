@@ -162,7 +162,7 @@ class Learner:
 
 
             update_args = ['radius_ratio_low', 'radius_ratio_high', 'height_ratio_low','height_ratio_high',
-                           'screw_angle_low','screw_angle_high','transl_noise_ratio','rot_noise_ratio','traj_batch']
+                           'screw_angle_low','screw_angle_high','transl_noise_ratio','rot_noise_ratio','traj_batch','gt_repeat']
 
             for k in update_args:
                 v = getattr(self._FLAGS, k)

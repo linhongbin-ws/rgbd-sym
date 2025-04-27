@@ -57,6 +57,7 @@ flags.DEFINE_float("screw_angle_high", None, "")
 flags.DEFINE_float("transl_noise_ratio", None, "")
 flags.DEFINE_float("rot_noise_ratio", None, "")
 flags.DEFINE_integer("traj_batch", None, "")
+flags.DEFINE_integer("gt_repeat", None, "")
 
 flags.FLAGS(sys.argv)
 yaml = YAML()
