@@ -33,7 +33,7 @@ def get_sym_params(env_name):
         params['out_background_encoding'] = 255
         params['sym_z_distance_thres'] = 0.092
         params['traj_nums']   = 4 
-        params['traj_batch']   = 1 
+        params['traj_batch']   = 3
         params['gt_repeat'] = 0
 
         params['radius_ratio_low'] = 0.75
