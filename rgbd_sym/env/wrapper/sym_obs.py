@@ -6,7 +6,7 @@ import cv2
 import gym
 
 class SymObs(BaseWrapper):
-    def __init__(self, env, depth_offset=40, sym_image_size=84, skip=False, **kwargs):
+    def __init__(self, env, depth_offset=70, sym_image_size=84, skip=False, **kwargs):
         super().__init__(env, **kwargs)
         self._sym_args = get_sym_params(env_name=self.unwrapped.task)
         self._sym_args['K'] = self.unwrapped.instrinsic_K
