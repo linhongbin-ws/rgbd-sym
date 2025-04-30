@@ -34,7 +34,7 @@ def get_sym_params(env_name):
         params['sym_z_distance_thres'] = 0.092
         params['traj_nums']   = 4 
         params['traj_batch']   = 3
-        params['gt_repeat'] = 0
+        params['gt_repeat'] = 1 # 
 
         params['radius_ratio_low'] = 0.75
         params['radius_ratio_high'] = 1

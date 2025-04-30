@@ -51,6 +51,7 @@ class SeqRotBufferCenter(SeqBuffer):
                 == next_observations.shape[0]
                 == expert_masks.shape[0]
             )
+            assert self._sym_args['gt_repeat'] > 0
             for _ in range(self._sym_args['gt_repeat']):
                 self._add_episode(observations, actions, rewards,
                                 terminals, next_observations, expert_masks)
