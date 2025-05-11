@@ -72,6 +72,7 @@ def local_depth_transform(depth_image, mask_dict,
                           depth_upsample=1,
                           debug=False,
                           ):
+    # debug = True
     depth = cv2.resize(depth_image,
                        (int(depth_image.shape[0]*depth_upsample),
                         int(depth_image.shape[1]*depth_upsample),),
@@ -382,6 +383,7 @@ def generate_sym2(obs, origin_actions,
                     sym_z_distance_thres = 0.092,
                     depth_offset = 40,
                     sym_image_size = 84,
+                    debug = False,
                   **args):
     
     radius_ratio = np.random.uniform(radius_ratio_low,radius_ratio_high)
@@ -492,11 +494,23 @@ def generate_sym2(obs, origin_actions,
             depth_real  =depth_img / 255
 
             depth_real =  scale_arr(depth_real, 0, 1, 0, 0.3)
+            
+            # depth_real6 = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_LANCZOS4)
+            # depth_real5 = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_AREA)
+            # depth_real4 = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_CUBIC)
+            # depth_real3 = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_NEAREST)
 
-            depth_real = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_NEAREST)
+            # depth_real2 = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_NEAREST)
+            depth_real2 = cv2.resize(depth_real, (sym_image_size, sym_image_size), interpolation=cv2.INTER_AREA)
             # scalar_layer =
             # new_img = np.stack([depth_real, scalar_layer], axis=0)
-            new_obs[_idx]['image'][0,:,:] = depth_real
+            new_obs[_idx]['image'][0,:,:] = depth_real2
+
+            debug = False
+            if debug:
+                from rgbd_sym.tool.plt import plot_img
+                img1 = [depth_real, depth_real2,depth_real3,depth_real4,depth_real5,depth_real6]
+                plot_img([img1])
 
 
 
