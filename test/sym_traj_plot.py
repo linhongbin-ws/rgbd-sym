@@ -9,6 +9,7 @@ from rgbd_sym.tool.sym import local_sym_step, get_sym_params, generate_sym2, act
 from rgbd_sym.tool.depth import get_intrinsic_matrix, projection_matrix_to_K
 import time
 from copy import deepcopy
+from utils.helpers import get_random_transform_params, perturb
 
 size = 84
 
@@ -60,6 +61,13 @@ while not done:
     obss_origin.append(obs)
 
 
+
+
+
+
+
+
+
 new_obss, new_actionss = generate_sym2(obss_origin, origin_actions, 
               **sym_args)
 for i in range(len(origin_actions)):
@@ -105,3 +113,33 @@ for i, new_actions in enumerate(new_actionss):
     pc_mat["label"] = f"traj {i+1}"
     points_mats.append(pc_mat)   
 plot_traj(points_mats, elev=45, azim=135, roll=0)
+
+
+
+
+
+image_size = (84,84)
+
+
+
+aug_image = [obss_origin[0]['image'][0,:,:]]
+for o in new_obss:
+    aug_image.append(o[0]['image'][0,:,:])
+
+imgs = []
+imgss = []
+for i in range(6):
+    imgs = []
+    theta, trans, pivot = get_random_transform_params(image_size)
+    for o in aug_image:
+        print("theta, trans, pivot,",theta, trans, pivot)
+        new_o, _, _, _ = perturb(o.copy(),
+                                        o.copy(),
+                                        np.zeros(2),
+                                        theta, trans, pivot,
+                                        set_trans_zero=True)
+        imgs.append(new_o)
+    imgss.append(imgs)
+plot_img(imgss)
+
+
