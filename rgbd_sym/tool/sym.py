@@ -112,9 +112,9 @@ def local_depth_transform(depth_image, mask_dict,
     points = points[points[:, 6] != 0, :]  # remove background
     occ_mat = pointclouds2occupancy(
         points,
-        occup_h=voxel_res,
-        occup_w=voxel_res,
-        occup_d=voxel_res,
+        occup_h=200,
+        occup_w=200,
+        occup_d=200,
         pc_x_min=pc_x_center - pc_range/2,
         pc_x_max=pc_x_center + pc_range/2,
         pc_y_min=pc_y_center - pc_range/2,
