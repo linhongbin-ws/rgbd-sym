@@ -27,6 +27,8 @@ flags.DEFINE_float("init_alpha", None, "init value for alpha")
 
 flags.DEFINE_integer("sym_expert", 0, "sym_expert")
 flags.DEFINE_integer("sym_normal", 0, "sym_normal")
+flags.DEFINE_integer("rotaug", 4, "rotaug")
+
 
 flags.DEFINE_integer("seed", None, "seed")
 flags.DEFINE_integer("batch_size", None, "batch_size")
@@ -95,6 +97,9 @@ if FLAGS.critic_type is not None:
 
 if FLAGS.save_interval is not None:
     v["eval"]["save_interval"] = FLAGS.save_interval
+
+
+v["train"]["num_aug_episode"] = FLAGS.rotaug
 
 actor_type, critic_type = v["policy"]["actor_type"], v["policy"]["critic_type"]
 
