@@ -91,7 +91,15 @@ class PomdpEnv(BaseEnv):
                     new_obs["depthR"][k][new_obs["mask"][k]] = _d
 
         if "object3" in new_obs["depthR"]:
-            new_obs["depthR"]["object3"][new_obs["mask"]["object3"]] = new_obs["depthR"]["object2"][new_obs["mask"]["object2"]][0] + 0.1
+            if np.sum(new_obs["mask"]["object1"]) > 20:
+                _mask = new_obs["mask"]["object1"]
+                _depth =  new_obs["depthR"]["object1"]
+                new_obs["depthR"]["object3"][new_obs["mask"]["object3"]] = _depth[_mask][0] + 0.1
+            elif np.sum(new_obs["mask"]["object2"]) > 20:
+                _mask = new_obs["mask"]["object2"]
+                _depth =  new_obs["depthR"]["object2"]
+                new_obs["depthR"]["object3"][new_obs["mask"]["object3"]] = _depth[_mask][0] + 0.1
+
 
         # from matplotlib.pyplot import imshow, subplot, axis, cm, show
         # import matplotlib.pyplot as plt
