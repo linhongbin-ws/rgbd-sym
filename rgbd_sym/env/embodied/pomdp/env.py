@@ -83,12 +83,13 @@ class PomdpEnv(BaseEnv):
         new_obs["depthR"] = deepcopy(_obs["depth"])
         new_obs["gripper_close"] =  deepcopy(_obs["gripper_close"])
 
-        for k, v in new_obs["depthR"].items():
-            new_obs["depthR"][k][np.logical_not(new_obs["mask"][k])] = 1
-            if not k in ["gripper", "object3"]:
-                if np.any(new_obs["mask"][k]):
-                    _d = np.max(new_obs["depthR"][k][new_obs["mask"][k]])
-                    new_obs["depthR"][k][new_obs["mask"][k]] = _d
+        # if self.task in ['block_pick', 'block_pull']:
+        #     for k, v in new_obs["depthR"].items():
+        #         new_obs["depthR"][k][np.logical_not(new_obs["mask"][k])] = 1
+        #         if not k in ["gripper", "object3"]:
+        #             if np.any(new_obs["mask"][k]):
+        #                 _d = np.max(new_obs["depthR"][k][new_obs["mask"][k]])
+        #                 new_obs["depthR"][k][new_obs["mask"][k]] = _d
 
         if "object3" in new_obs["depthR"]:
             if np.sum(new_obs["mask"]["object1"]) > 20:
