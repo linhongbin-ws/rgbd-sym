@@ -1,166 +1,122 @@
-from pdomains import *
+# from pdomains import *
 from rgbd_sym.env.embodied.base import BaseEnv
 import gym
+from rgbd_sym.env.embodied import pomdp
 import numpy as np
-from pomdp_envs import pomdp
-from rgbd_sym.tool.common import scale_arr
-from copy import deepcopy
-from rgbd_sym.tool.depth import projection_matrix_to_K
+from copy import deepcopy as cp
+import pybullet as pd
+# from pomdp_envs import pomdp
+# from rgbd_sym.tool.common import scale_arr
+# from copy import deepcopy
+# from rgbd_sym.tool.depth import projection_matrix_to_K
 
 
 class PomdpEnv(BaseEnv):
-    """ action: [gripper, x,y,z,yaw]"""
-
-    def __init__(self,
-                 task,
-                 pybullet_gui=False,
-                 **kwargs,):
-        self.task = task
-        task_id = {
-                "block_pick":"BlockPicking-Symm-Dict",
-                "block_pull":"BlockPulling-Symm-Dict",
-                "block_push":"BlockPushing-Symm-Dict",
-                "drawer_open":"DrawerOpening-Symm-Dict", 
-                   }[task]
-        # if task == 'block_pick':
-        #     task_id = "BlockPicking-Symm-Dict"
-        # elif task == 'block_pull':
-        #     task_id = "BlockPulling-Symm-Dict"
-        client = gym.make(task_id, rendering=pybullet_gui)
-        client.unwrapped._obs_dict = True
+    def __init__(self, 
+                 task='block_pull',
+                 ):
+        if task == 'block_pull':
+            client = gym.make("BlockPulling-Symm-v0")
+    
         super().__init__(client)
-        self._new_obs_shape = None
-        self._oracle_rng = np.random.RandomState(0)
-        self._eps_int = 0
+        self._task = task
+        self._obs = None
+        self._eps_idx = 0
 
     def reset(self):
-        self.timestep = 0
-        self._eps_int+=1
-        obs = self.client.reset()
-        if self.task in ["block_pull", "block_pick"]:
-            obs,_,_,_ = self.client.step(np.array([1.0, 0.0, 0.0, 0.0, 0.0]))
-            self._gripper_close = False
-        else:
-            obs,_,_,_ = self.client.step(np.array([-0.3, 0.0, 0.0, 0.0, 0.0]))
-            self._gripper_close = True
-        obs['gripper_close'] = 1 if self._gripper_close else 0
-        obs = self._process_obs(obs)
-        self._prv_obs = obs
-        return obs
+        self._obs = self.client.reset()
+        self._obs = self._obs_proc(self._obs)
+        self._eps_idx +=1
+        return self._obs
+    def step(self,action):
+        self._obs, reward, done, info = self.client.step(action)
+        self._obs = self._obs_proc(self._obs)
+        return self._obs, reward, done, info
+    def render(self):   
+        return self._obs
+    
+    def get_oracle_action(self):
+        return self.client.query_expert(self._eps_idx)
 
-    def step(self, action, skip=False):
-        _action = action.copy()
-        self.timestep += 1
-        if skip:
-            obs = self._prv_obs
-            reward = 0
-            done = False
-            info = {}
-            info["success"] = False
-        else:
-            if action[0]>0:
-                _action[0] = 1
-                self._gripper_close = False
-            else:
-                _action[0] = -0.3
-                self._gripper_close = True
-            obs, reward, done, info = self.client.step(_action)
-            obs['gripper_close'] = 1 if self._gripper_close else 0
-            obs = self._process_obs(obs)
-
-        return obs, reward, done, info
-
-    def render(self, mode):  # ['human', 'rgb_array', 'mask_array']
-        return self.client.render(mode=mode)
-
-    def get_oracle_action(self, obs=None):
-        return self.client.query_expert(self._eps_int)
-
-    def _process_obs(self, _obs):
-        new_obs = {}
-        new_obs['rgb'] = deepcopy(_obs['rgb'])
-        new_obs['mask'] = deepcopy(_obs['mask'])
-        new_obs["depthR"] = deepcopy(_obs["depth"])
-        new_obs["gripper_close"] =  deepcopy(_obs["gripper_close"])
-
-        for k, v in new_obs["depthR"].items():
-            new_obs["depthR"][k][np.logical_not(new_obs["mask"][k])] = 1
-            if not k in ["gripper", "object3"]:
-                if np.any(new_obs["mask"][k]):
-                    _d = np.max(new_obs["depthR"][k][new_obs["mask"][k]])
-                    new_obs["depthR"][k][new_obs["mask"][k]] = _d
-
-        if "object3" in new_obs["depthR"]:
-            if np.sum(new_obs["mask"]["object1"]) > 20:
-                _mask = new_obs["mask"]["object1"]
-                _depth =  new_obs["depthR"]["object1"]
-                new_obs["depthR"]["object3"][new_obs["mask"]["object3"]] = _depth[_mask][0] + 0.1
-            elif np.sum(new_obs["mask"]["object2"]) > 20:
-                _mask = new_obs["mask"]["object2"]
-                _depth =  new_obs["depthR"]["object2"]
-                new_obs["depthR"]["object3"][new_obs["mask"]["object3"]] = _depth[_mask][0] + 0.1
-
-
-        # from matplotlib.pyplot import imshow, subplot, axis, cm, show
-        # import matplotlib.pyplot as plt
-        # import matplotlib
-        # plt.rcParams['figure.figsize'] = [50, 40]
-        # image_list = [v for _,v in new_obs["depthR"].items()]
-        # image_list.append(new_obs["mask"]["object3"])
-        # for i in range(len(image_list)):
-        #     ax = subplot(1, len(image_list), 1+i)
-        #     imshow(image_list[i])
-        #     plt.colorbar()
-        # show()
-            
-        new_obs['depth'] = {k: np.uint8(scale_arr(v, 0, 1, 0, 255)) for k, v in new_obs["depthR"].items()}
-        gripper_d = np.mean(new_obs["depthR"]["gripper"][new_obs["mask"]["gripper"]])
-        object_d = np.mean(new_obs["depthR"]["object2"][new_obs["mask"]["object2"]])
-        new_obs['z_distance'] = gripper_d - object_d
-        new_obs['grasp_sig'] =  _obs['image'][1,0,0]
-
-        # obs_t = np.transpose(_obs['image'], axes=[1, 2, 0])
-        # obs_t = np.concatenate(
-        #     [obs_t, np.zeros(obs_t.shape[:2]+(1,), dtype=np.uint8)], axis=2)
-        # new_obs['image_new'] = np.uint8(obs_t*255)  # real depth to depth image
-        # for k, v in new_obs["depth"].items():
-        #     new_obs["depth"][k][np.logical_not(new_obs["mask"][k])] = 1
-        # new_obs["depthR"] = deepcopy(_obs["depth"])
-        # new_obs['depth'] = {k: np.uint8(scale_arr(v, 0, 1, 0, 255)) for k, v in _obs['depth'].items()}
-        # gripper_d = np.mean(new_obs["depthR"]["gripper"][new_obs["mask"]["gripper"]])
-        # if "object2" in new_obs["depthR"]:
-        # object_d = np.mean(new_obs["depthR"]["object2"][new_obs["mask"]["object2"]])
+    def _mask_or(self, mask, ids):
+        x = None
+        for _id in ids:
+            out = mask == _id
+            x = out if x is None else x | out
+        return x
+    
+    def _obs_proc(self, obs):
+        new_obs = cp(obs)
+        # mask process
+        mask_metadata = obs['mask_metadata']
+        get_mask = lambda in_obj_data, in_link_data,  _obj_id, _obj_link_id: (in_obj_data == _obj_id) & (self._mask_or(in_link_data, _obj_link_id))
+        masks = {}
+        masks['gripper'] =  obs['gripper_mask']
+        if len(self.client.core_env.objects) > 0:
+            _obj_ids = [o.object_id for o in self.client.core_env.objects]
+            for i, o_id in enumerate(_obj_ids):
+                masks['object'+str(i+1)] = get_mask(mask_metadata[0], mask_metadata[1], o_id, [-1])
         # else:
-        #     object_d = 0
-        # new_obs['z_distance'] = gripper_d - object_d
+        #     _obj_ids = [self.drawer,self.locked_drawer,]
+        #     for i, o_id in enumerate(_obj_ids):
+        #     # links_ids = [2,3,4,6,7]
+        #     # links_ids = [11]
+        #     links_ids = np.arange(12).tolist()
+        #     # print("xxxxxxxxxx")
+        #     # print(links_ids)
+        #     masks['object'+str(i+1)] = np.transpose(get_mask(mask_metadata[0], mask_metadata[1], o_id.id,links_ids))      #2,3,4 6 7
+        #     handle = np.transpose(get_mask(mask_metadata[0], mask_metadata[1], o_id.handle.id, [-1,0,1]))
+        #     masks['object'+str(i+1)] = np.logical_or(masks['object'+str(i+1)], handle)
+        #     return new_obs
+        
+        # https://stackoverflow.com/questions/59128880/getting-world-coordinates-from-opengl-depth-buffer
+        
+        pc_dict = {}
+        for k, v in masks.items():
+            depthImg = cp(obs['depth'][0])
+            # import matplotlib.pyplot as plt
+            # from matplotlib.pyplot import imshow, subplot, axis, cm, show
+            # imshow(depthImg)
+            # plt.colorbar()
+            # plt.show()
+            depthImg[np.logical_not(v)] = 10000
+            # imshow(depthImg)
+            # plt.colorbar()
+            # plt.show()
+            size = depthImg.shape[0]
+            projectionMatrix = np.asarray(obs['proj_mat']).reshape([4,4],order='F')
+            # view_mat = pd.computeViewMatrixFromYawPitchRoll(cameraEyePosition=[])
+            viewMatrix = np.asarray(obs['view_mat']).reshape([4,4],order='F')
+            tran_pix_world = np.linalg.inv(projectionMatrix)
+            pixel_pos = np.mgrid[0:size, 0:size]
+            pixel_pos = pixel_pos/(size/2) - 1
+            pixel_pos = np.moveaxis(pixel_pos, 1, 2)
+            pixel_pos[1] = -pixel_pos[1]
+            zs = 2*depthImg.reshape(1, size, size) - 1
+            pixel_pos = np.concatenate((pixel_pos, zs))
+            pixel_pos = pixel_pos.reshape(3, -1)
+            augment = np.ones((1, pixel_pos.shape[1]))
+            pixel_pos = np.concatenate((pixel_pos, augment), axis=0)
+            position = np.matmul(tran_pix_world, pixel_pos)
+            pc = position / position[3]
+            points = pc.T[:, :3]
+            # print(points)
+            points = np.array(points)
+            threshold = -10
+            points = points[points[:,2]>threshold,:] 
+            if k == "gripper":
+                print(f"x: {np.min(points[:,0])} {np.max(points[:,0])}", end= " ")
+                print(f"y: {np.min(points[:,1])} {np.max(points[:,1])}", end= " ")
+                print(f"z: {np.min(points[:,2])} {np.max(points[:,2])}",)
+            
+
+                # import open3d as o3d
+                # pcd = o3d.geometry.PointCloud()
+                # pcd.points = o3d.utility.Vector3dVector(points)
+                # o3d.visualization.draw_geometries([pcd])
+            
+            pc_dict[k] = points
+        
+        new_obs['mask'] = masks
+        new_obs['pc'] = pc_dict
         return new_obs
-
-    @property
-    def observation_space(self):
-        if self._new_obs_shape is None:
-            obs = self.reset()
-            self._new_obs_shape = obs['image'].shape
-        return gym.spaces.Box(0, 255, self._new_obs_shape,
-                              dtype=np.uint8)
-
-    @property
-    def seed(self):
-        return self._seed
-
-    @seed.setter
-    def seed(self, seed):
-        self._seed = seed
-        self.client.seed(seed)
-        self.client.core_env.pose_rng(seed)
-        self._oracle_rng = np.random.RandomState(seed)
-
-    @property
-    def instrinsic_K(self):
-        proj = self.client.get_projection_matrix()
-        obs = self.reset()
-        K = projection_matrix_to_K(proj, image_size=obs['depthR']['gripper'].shape[0])
-        return K
-
-    def __getattr__(self, name):
-        """__getattr__ is only invoked if the attribute wasn't found the usual ways."""
-        return getattr(self.client, name)

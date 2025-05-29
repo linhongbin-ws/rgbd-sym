@@ -71,7 +71,8 @@ def pointclouds2occupancy(pc_mat,
 
     pointSet = o3d.geometry.PointCloud()
     pointSet.points = o3d.utility.Vector3dVector(_pc_mat[:,:3])
-    pointSet.colors = o3d.utility.Vector3dVector(_pc_mat[:,3:6])
+    if _pc_mat.shape[1] >=6:
+        pointSet.colors = o3d.utility.Vector3dVector(_pc_mat[:,3:6])
     voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud_within_bounds(pointSet, 
                                           voxel_size, 
                                           min_bound, 
