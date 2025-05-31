@@ -73,6 +73,8 @@ class Sensor(object):
     depth_img = np.array(image_arr[3])
     depth = self.far * self.near / (self.far - (self.far - self.near) * depth_img)
     # depth = np.abs(depth - np.max(depth)).reshape(size, size)
+  
+
 
     mask = image_arr[4].reshape(size, size)
     mask_background_id=-5

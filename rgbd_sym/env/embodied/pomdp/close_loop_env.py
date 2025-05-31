@@ -221,7 +221,14 @@ class CloseLoopEnv(BaseEnv):
       #   heightmap[gripper_img == 1] = gripper_pos[2]
       # else:
       #   heightmap[gripper_img == 1] = 0
-      heightmap[gripper_img == 1] = 0.9
+
+      # modify
+      heightmap[gripper_img == 1] = 1 - self.heightmap['gripper_pos'][2]
+      # import matplotlib.pyplot as plt
+      # from matplotlib.pyplot import imshow, subplot, axis, cm, show
+      # imshow(heightmap)
+      # plt.colorbar()
+      # plt.show()
       heightmap = heightmap.reshape([1, self.heightmap_size, self.heightmap_size])
       # gripper_img = gripper_img.reshape([1, self.heightmap_size, self.heightmap_size])
       self.heightmap['depth'] = heightmap
@@ -362,6 +369,7 @@ class CloseLoopEnv(BaseEnv):
       #   heightmap_dict['depth'] = -heightmap_dict['depth'] + gripper_pos[2]
       # else:
       #   depth = heightmap
+      heightmap_dict['gripper_pos'] = gripper_pos
       return heightmap_dict
     elif self.view_type in ['pers_center_xyz']:
       # xyz centered, gripper will be visible

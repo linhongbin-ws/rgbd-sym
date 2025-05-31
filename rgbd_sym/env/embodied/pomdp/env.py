@@ -5,6 +5,8 @@ from rgbd_sym.env.embodied import pomdp
 import numpy as np
 from copy import deepcopy as cp
 import pybullet as pd
+from rgbd_sym.tool.depth import get_intrinsic_matrix, occup2image, scale_K, projection_matrix_to_K
+from rgbd_sym.tool.o3d import depth_image_to_point_cloud
 # from pomdp_envs import pomdp
 # from rgbd_sym.tool.common import scale_arr
 # from copy import deepcopy
@@ -31,6 +33,7 @@ class PomdpEnv(BaseEnv):
     def step(self,action):
         self._obs, reward, done, info = self.client.step(action)
         self._obs = self._obs_proc(self._obs)
+        # print(self._obs['gripper_pos'])
         return self._obs, reward, done, info
     def render(self):   
         return self._obs
@@ -74,41 +77,68 @@ class PomdpEnv(BaseEnv):
         pc_dict = {}
         for k, v in masks.items():
             depthImg = cp(obs['depth'][0])
-            # import matplotlib.pyplot as plt
-            # from matplotlib.pyplot import imshow, subplot, axis, cm, show
-            # imshow(depthImg)
-            # plt.colorbar()
-            # plt.show()
-            depthImg[np.logical_not(v)] = 10000
-            # imshow(depthImg)
-            # plt.colorbar()
-            # plt.show()
-            size = depthImg.shape[0]
-            projectionMatrix = np.asarray(obs['proj_mat']).reshape([4,4],order='F')
-            # view_mat = pd.computeViewMatrixFromYawPitchRoll(cameraEyePosition=[])
-            viewMatrix = np.asarray(obs['view_mat']).reshape([4,4],order='F')
-            tran_pix_world = np.linalg.inv(projectionMatrix)
-            pixel_pos = np.mgrid[0:size, 0:size]
-            pixel_pos = pixel_pos/(size/2) - 1
-            pixel_pos = np.moveaxis(pixel_pos, 1, 2)
-            pixel_pos[1] = -pixel_pos[1]
-            zs = 2*depthImg.reshape(1, size, size) - 1
-            pixel_pos = np.concatenate((pixel_pos, zs))
-            pixel_pos = pixel_pos.reshape(3, -1)
-            augment = np.ones((1, pixel_pos.shape[1]))
-            pixel_pos = np.concatenate((pixel_pos, augment), axis=0)
-            position = np.matmul(tran_pix_world, pixel_pos)
-            pc = position / position[3]
-            points = pc.T[:, :3]
-            # print(points)
-            points = np.array(points)
-            threshold = -10
-            points = points[points[:,2]>threshold,:] 
-            if k == "gripper":
-                print(f"x: {np.min(points[:,0])} {np.max(points[:,0])}", end= " ")
-                print(f"y: {np.min(points[:,1])} {np.max(points[:,1])}", end= " ")
-                print(f"z: {np.min(points[:,2])} {np.max(points[:,2])}",)
-            
+            if True:
+                
+
+                depth_real = depthImg
+                encode_mask = np.zeros(depth_real.shape, dtype=np.uint8)
+                encode_mask[v] = 1
+                proj = np.array(list(obs['proj_mat'])).reshape(4,4)
+                new_K = projection_matrix_to_K(proj, depth_real.shape[0])
+                scale = 1
+                pose = np.eye(4)
+                rgb = np.zeros(depth_real.shape + (3,), dtype=np.uint8)
+                points = depth_image_to_point_cloud(
+                    rgb, depth_real, scale, new_K, pose, encode_mask=encode_mask, tolist=False
+                )
+                points = points[points[:, 6] == 1, :3]  # remove background
+            else:
+                ## note: this part of code do not work well! Point cloud Z do not sync with the depth
+
+                # import matplotlib.pyplot as plt
+                # from matplotlib.pyplot import imshow, subplot, axis, cm, show
+                # imshow(depthImg)
+                # plt.colorbar()
+                # plt.show()
+                depthImg[np.logical_not(v)] = 10000
+                # imshow(depthImg)
+                # plt.colorbar()
+                # plt.show()
+                size = depthImg.shape[0]
+                projectionMatrix = np.asarray(obs['proj_mat']).reshape([4,4],order='F')
+                viewMatrix = np.asarray(obs['view_mat']).reshape([4,4],order='F')
+                tran_pix_world = np.linalg.inv(np.matmul(projectionMatrix, viewMatrix))
+                pixel_pos = np.mgrid[0:size, 0:size]
+                pixel_pos = pixel_pos/(size/2) - 1
+                pixel_pos = np.moveaxis(pixel_pos, 1, 2)
+                pixel_pos[1] = -pixel_pos[1]
+                zs = 2*depthImg.reshape(1, size, size) - 1
+                pixel_pos = np.concatenate((pixel_pos, zs))
+                pixel_pos = pixel_pos.reshape(3, -1)
+                augment = np.ones((1, pixel_pos.shape[1]))
+                pixel_pos = np.concatenate((pixel_pos, augment), axis=0)
+                position = np.matmul(tran_pix_world, pixel_pos)
+                pc = position / position[3]
+                points = pc.T[:, :3]
+                
+                points = np.array(points)
+                threshold = -10
+                points = points[points[:,2]>threshold,:]
+
+                ref = obs['gripper_pos']
+                ref[2] = 1
+                points = points - ref
+                # points[:,2] = points[:,2] * 3  # scale depth 
+                # if k!="gripper":
+                #     points[:,2] = points[:,2] - 0.3 # scale depth 
+                # if k == "gripper":
+                #     print(f"x: {np.min(points[:,0])} {np.max(points[:,0])}", end= " ")
+                #     print(f"y: {np.min(points[:,1])} {np.max(points[:,1])}", end= " ")
+                #     print(f"z: {np.min(points[:,2])} {np.max(points[:,2])}",)
+                # if points.shape[0]>0:
+                #     print("x range:", np.min(points[:,0]),np.max(points[:,0]))
+                #     print("y range:", np.min(points[:,1]),np.max(points[:,1]))
+                #     print("z range:", np.min(points[:,2]),np.max(points[:,2]))
 
                 # import open3d as o3d
                 # pcd = o3d.geometry.PointCloud()
@@ -116,6 +146,11 @@ class PomdpEnv(BaseEnv):
                 # o3d.visualization.draw_geometries([pcd])
             
             pc_dict[k] = points
+        
+        # print(f"gripper to object max: {np.max(obs['depth'][0][masks['gripper']])- np.max(obs['depth'][0][masks['object1']])}")
+        # print(f"gripper to object max: {np.max(pc_dict['gripper'][:,2])-np.max(pc_dict['object1'][:,2])}")
+        # print(f"gripper to object min: {np.min(pc_dict['gripper'][:,2])-np.min(pc_dict['object1'][:,2])}")
+
         
         new_obs['mask'] = masks
         new_obs['pc'] = pc_dict

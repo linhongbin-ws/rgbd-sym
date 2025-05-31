@@ -170,7 +170,8 @@ def pointclouds2occupancy(pc_mat, occup_h, occup_w, occup_d,
     occ_mat[idx_x,idx_y,idx_z] = True
     return occ_mat
 
-def occup2image(occ_mat, image_type='projection', background_encoding=255
+def occup2image(occ_mat, image_type='projection', background_encoding=255,
+                **kwargs
                 ):
     if image_type=="projection":
         occ_proj_y = np.sum(occ_mat, axis=0) !=0
@@ -204,6 +205,14 @@ def occup2image(occ_mat, image_type='projection', background_encoding=255
         z = np.clip(scale_arr(z, 0, s[2]-1, 0, 255),0,255).astype(np.uint8)
         z = np.transpose(z)
         return z, z!= background_encoding
+    elif image_type=="real_depth":
+        s = occ_mat.shape
+        index_arr = np.tile(np.arange(s[2]).reshape(1,1,-1,), (s[0],s[1],1))
+        index_arr[np.logical_not(occ_mat)] = s[2]
+        z = np.min(index_arr, axis=2)
+        mask = z!= s[2]
+        z = scale_arr(z, 0, s[2]-1,kwargs['depth_min'], kwargs['depth_max'])
+        return z, mask
     else:
         raise NotImplementedError
 

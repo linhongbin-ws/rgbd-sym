@@ -537,3 +537,73 @@ def generate_sym2(obs, origin_actions,
         new_sym_actionss.append(new_sym_actions)
 
     return new_sym_obss, new_sym_actionss
+
+
+def generate_sym3(obs, origin_actions,
+                  dummy_env,
+                  sym_trans_z, sym_trans_r, sym_trans_rot, sym_rot,
+                 sym_start_step=None,
+                  sym_end_step=None,
+                  sym_cover_origin_traj=False,
+                  *kwargs
+                  ):
+    if sym_start_step is None:
+        sym_start_step = 0
+    if sym_end_step is None:
+        ids = [(i,o) for i, o in enumerate(obs)]
+        for _o in ids:
+            if _o[1]['gripper_pos'][2]<  0.1:
+                break
+        sym_end_step = _o[0]
+
+    assert sym_start_step <= sym_end_step
+    print(f"sym_start_step: {sym_start_step}")
+    print(f"sym_end_step: {sym_end_step}")
+
+
+    start_ob = obs[sym_end_step]
+    # dummy_env.set_current_points(start_ob['pc'])
+    # _ = dummy_env.reset()
+    new_acts = origin_actions[sym_start_step:sym_end_step].copy()
+    new_acts = [action_sym(_a, sym_trans_z, sym_trans_r, sym_trans_rot, sym_rot) for _a in new_acts]
+    new_acts = [_a for _a in reversed(new_acts)]
+    new_acts = [action_inverse(_a) for _a in new_acts]
+    
+    idx = np.arange(sym_start_step, sym_end_step)
+    idx = np.flip(idx).tolist()
+    _obs_short = []
+    _as_short = []
+    for _i, _a in enumerate(new_acts):
+        _idx = idx[_i]
+        dummy_env.set_current_points(obs[_idx]['pc'])
+        for _oa in origin_actions[_idx: sym_end_step]:
+            _obs,_,_,_ = dummy_env.step(_oa)
+        for _a in new_acts[:_i+1]:
+            _obs,_,_,_ = dummy_env.step(_a)
+        _obs_short.append(_obs)
+        _as_short.append(_a)
+    new_sym_obs = obs[:sym_start_step] + [_o for _o in reversed(_obs_short)] + obs[sym_end_step:]
+    new_sym_actions = origin_actions[:sym_start_step] + [action_inverse(_a) for _a in reversed(_as_short)] + origin_actions[sym_end_step:]
+
+    return new_sym_obs, new_sym_actions 
+
+
+def action_sym(a, sym_trans_z, sym_trans_r, sym_trans_rot, sym_rot):
+    new_a = a.copy()
+    new_a[1:3] =  new_a[1:3] * sym_trans_r
+    new_a[3] =  new_a[3] * sym_trans_z
+    R = np.array([[np.cos(sym_trans_rot), -np.sin(sym_trans_rot), 0 ],
+                  [-np.sin(sym_trans_rot),np.cos(sym_trans_rot), 0],
+                  [0,0, 1]])
+    new_a[1:4] =  np.matmul(new_a[1:4], R)
+    new_a[4] = new_a[4] + np.random.uniform(-1,1,)*sym_rot
+    return new_a
+
+
+        
+def action_inverse(a):
+    new_a = np.zeros(a.shape, dtype=a.dtype)
+    new_a[0] = a[0]
+    new_a[1:4] = -a[1:4]
+    new_a[4] = -a[4]
+    return new_a
