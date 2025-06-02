@@ -12,7 +12,7 @@ from pathlib import Path
 import psutil
 
 from torchkit.pytorch_utils import set_gpu_mode
-from rgbd_sym.rl.rsac.learner import Learner
+from rgbd_sym.rl.learner import Learner
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("cfg", None, "path to configuration file")
@@ -24,11 +24,6 @@ flags.DEFINE_float("target_entropy", None, "for [sac]")
 flags.DEFINE_float("entropy_alpha", None, "for [sac]")
 flags.DEFINE_float("time_limit", 1000.0, "time limit (discovery)")
 flags.DEFINE_float("init_alpha", None, "init value for alpha")
-
-flags.DEFINE_integer("sym_expert", 0, "sym_expert")
-flags.DEFINE_integer("sym_normal", 0, "sym_normal")
-flags.DEFINE_integer("rotaug", 4, "rotaug")
-
 
 flags.DEFINE_integer("seed", None, "seed")
 flags.DEFINE_integer("batch_size", None, "batch_size")
@@ -47,19 +42,6 @@ flags.DEFINE_string("critic_type", None, "type of critic [normal, equi]")
 flags.DEFINE_string("prefix", None, "prefix of wandb group")
 flags.DEFINE_boolean("debug", False, "debug mode")
 flags.DEFINE_boolean("replay", False, "replay/train mode")
-
-
-# sym args
-flags.DEFINE_float("radius_ratio_low", None, "")
-flags.DEFINE_float("radius_ratio_high", None, "")
-flags.DEFINE_float("height_ratio_low", None, "")
-flags.DEFINE_float("height_ratio_high", None, "")
-flags.DEFINE_float("screw_angle_low", None, "")
-flags.DEFINE_float("screw_angle_high", None, "")
-flags.DEFINE_float("transl_noise_ratio", None, "")
-flags.DEFINE_float("rot_noise_ratio", None, "")
-flags.DEFINE_integer("traj_batch", None, "")
-flags.DEFINE_integer("gt_repeat", None, "")
 
 flags.FLAGS(sys.argv)
 yaml = YAML()
@@ -97,9 +79,6 @@ if FLAGS.critic_type is not None:
 
 if FLAGS.save_interval is not None:
     v["eval"]["save_interval"] = FLAGS.save_interval
-
-
-v["train"]["num_aug_episode"] = FLAGS.rotaug
 
 actor_type, critic_type = v["policy"]["actor_type"], v["policy"]["critic_type"]
 
@@ -204,9 +183,6 @@ learner = Learner(
     prefix=FLAGS.prefix,
     ckpt_dir=FLAGS.checkpoint_dir,
     cfg_file=FLAGS.cfg,
-    sym_expert=FLAGS.sym_expert,
-    sym_normal=FLAGS.sym_normal,
-    FLAGS = FLAGS
 )
 
 logger.log(

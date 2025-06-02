@@ -2,25 +2,24 @@ seed: 73
 cuda: 0 # use_gpu
 env:
   env_type: pomdp
-  env_name: BlockPicking-Symm-v0
-
+  env_name: BlockPulling-Symm-v0
   num_eval_tasks: 10 # num of eval episodes
 
 train:
   # 100*50 = 50k steps
-  num_iters: 3200 # number meta-training iterates
+  num_iters: 800 # number meta-training iterates
   num_init_rollouts_pool: 20 # before training
   num_expert_rollouts_pool: 80 # before training
   num_rollouts_per_iter: 1
 
-  num_updates_per_iter: 2.0
+  num_updates_per_iter: 1.0
   # buffer params
-  buffer_size: 8e5
+  buffer_size: 1e5
   batch_size: 32 # to tune based on sampled_seq_len
   sampled_seq_len: -1 # -1 is all, or positive integer
   sample_weight_baseline: 0.0
-  buffer_type: seq_rot_center
-  num_aug_episode: 0
+  buffer_type: seq_rot
+  num_aug_episode: 4
 
 eval:
   log_interval: 10 # num of iters
@@ -29,12 +28,12 @@ eval:
 
 policy:
   separate: True
-  actor_type: equi # [normal, equi]
-  critic_type: equi # [normal, equi]
+  actor_type: normal # [normal, equi]
+  critic_type: normal # [normal, equi]
   algo_name: sac # [sac, td3]
 
   num_rotations: 4 # group
-  flip_symmetry: true
+  flip_symmetry: false
 
   action_embedding_size: 16 # no action input
   observ_embedding_size: 0 # use image encoder

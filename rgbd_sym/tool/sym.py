@@ -556,8 +556,8 @@ def generate_sym3(obs, origin_actions,
         sym_end_step = _o[0]
 
     assert sym_start_step <= sym_end_step
-    print(f"sym_start_step: {sym_start_step}")
-    print(f"sym_end_step: {sym_end_step}")
+    # print(f"sym_start_step: {sym_start_step}")
+    # print(f"sym_end_step: {sym_end_step}")
 
 
     start_ob = obs[sym_end_step]
@@ -584,6 +584,12 @@ def generate_sym3(obs, origin_actions,
     new_sym_obs = obs[:sym_start_step] + [_o for _o in reversed(_obs_short)] + obs[sym_end_step:]
     new_sym_actions = origin_actions[:sym_start_step] + [action_inverse(_a) for _a in reversed(_as_short)] + origin_actions[sym_end_step:]
 
+    # update new obs
+    _new_sym_obs = deepcopy(obs)
+    assert len(_new_sym_obs) == len(new_sym_obs)
+    for i in range(len(new_sym_obs)):
+        _new_sym_obs[i].update(new_sym_obs[i])
+    new_sym_obs = _new_sym_obs
     return new_sym_obs, new_sym_actions 
 
 

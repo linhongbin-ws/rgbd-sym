@@ -8,7 +8,7 @@ import random
 import torch
 from torch.nn import functional as F
 import gym
-import datetime
+
 from utils.helpers import center_crop
 
 # suppress this warning https://github.com/openai/gym/issues/1844
@@ -30,8 +30,8 @@ from buffers.seq_rad_rot import SeqRadRotBuffer
 from buffers_efficient.seq_vanilla import SeqBuffer as SeqBufferEff
 from buffers_efficient.seq_rot import SeqRotBuffer as SeqRotBufferEff
 from buffers_efficient.seq_per_rot import SeqPerRotBuffer as SeqPerRotBufferEff
-from rgbd_sym.rl.rsac.seq_rot_center import SeqRotBufferCenter
-from rgbd_sym.rl.rsac import helpers as utl
+
+from utils import helpers as utl
 from torchkit import pytorch_utils as ptu
 from utils import logger
 
@@ -41,13 +41,7 @@ import wandb
 class Learner:
     def __init__(self, env_args, train_args, eval_args,
                  policy_args, seed, replay, time_limit,
-                 prefix, ckpt_dir, cfg_file, 
-                 sym_expert,
-                 sym_normal,
-                 FLAGS,
-                 **kwargs):
-        
-        self._FLAGS = FLAGS
+                 prefix, ckpt_dir, cfg_file, **kwargs):
         self.seed = seed
         self.group_prefix = prefix
 
@@ -58,9 +52,6 @@ class Learner:
         # TODO:
         self.per_expert_eps = 1.0
         self.per_eps = 1e-6
-
-        self._sym_expert = sym_expert
-        self._sym_normal = sym_normal
 
         ckpt_filename = f"{env_args['env_name'][:-3]}"      \
                         + f"_{policy_args['algo_name']}"    \
@@ -103,6 +94,8 @@ class Learner:
 
         self.init_eval(**eval_args)
 
+        self._train_args = train_args
+
     def set_random_state(self):
         random.setstate(self.chkpt_dict["random_rng_state"])
         np.random.set_state(self.chkpt_dict["numpy_rng_state"])
@@ -132,53 +125,17 @@ class Learner:
         if self.env_type in [
             "pomdp",
         ]:  # pomdp/mdp task, using pomdp wrapper
-            import pomdp_envs.pomdp
+            # import envs.pomdp
 
             assert num_eval_tasks > 0
 
-            # self.train_env = gym.make(env_name, rendering=self.replay)
             from rgbd_sym.api import make_env
-            if env_name == "BlockPulling-Symm-v0":
-                self.env_id = 'block_pull'
-                env_tag = [self.env_id]
-            elif env_name == "BlockPicking-Symm-v0":
-                self.env_id = 'block_pick'
-                env_tag = [self.env_id]
-            elif env_name == "BlockPushing-Symm-v0":
-                self.env_id = 'block_push'
-                env_tag = [self.env_id]
-            elif env_name == "DrawerOpening-Symm-v0":
-                self.env_id = 'drawer_open'
-                env_tag = [self.env_id]
-            else:
-                raise NotImplementedError
-            self.train_env, env_config = make_env(tags=env_tag, seed=self.seed)
-            from rgbd_sym.tool.sym import get_sym_params
+            self.train_env = make_env(env_name,**kwargs)
+            # self.train_env = gym.make(env_name, rendering=self.replay)
+            
+            self.train_env.action_space.np_random.seed(self.seed)  # crucial
 
-
-            self._sym_args = get_sym_params(self.env_id)
-            self._sym_args['K'] = self.train_env.unwrapped.instrinsic_K
-
-
-
-            update_args = ['radius_ratio_low', 'radius_ratio_high', 'height_ratio_low','height_ratio_high',
-                           'screw_angle_low','screw_angle_high','transl_noise_ratio','rot_noise_ratio','traj_batch','gt_repeat']
-
-            for k in update_args:
-                v = getattr(self._FLAGS, k)
-                if v is not None:
-                    self._sym_args[k] = v
-
-
-
-            print("sym_args:")
-            for _k, _v in self._sym_args.items():
-                print(f"                   {_k}: {_v}")
-
-            # self.train_env.seed = self.seed
-            # self.train_env.action_space.np_random.seed(self.seed)  # crucial
-            self.eval_env, env_config = make_env(tags=env_tag, seed=self.seed + 1)
-            # self.eval_env = self.train_env
+            self.eval_env = self.train_env
             # self.eval_env.seed(self.seed + 1)
 
             self.train_tasks = []
@@ -337,9 +294,6 @@ class Learner:
             elif buffer_type == SeqPerRotBufferEff.buffer_type:
                 buffer_class = SeqPerRotBufferEff
 
-            elif buffer_type == SeqRotBufferCenter.buffer_type:
-                buffer_class = SeqRotBufferCenter
-
             else:
                 raise NotImplementedError
 
@@ -354,9 +308,6 @@ class Learner:
                 sample_weight_baseline=sample_weight_baseline,
                 num_aug_episode=num_aug_episode,
                 observation_type=self.train_env.observation_space.dtype,
-                sym_eps_expert=self._sym_expert,
-                sym_eps_normal=self._sym_normal,
-                sym_args = self._sym_args,
             )
 
         # load buffer from checkpoint
@@ -404,16 +355,21 @@ class Learner:
         critic_type,
         num_rotations,
         num_expert_rollouts_pool,
+        mea_expert_eps,
+        mea_normal_eps,
         num_aug_episode,
         **kwargs,
-    ):
-        timestamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
-        project_name = f"Symmetry_{env_name[:-3]}_e{num_expert_rollouts_pool}"
+    ):  
+        
+        project_name = f"Symmetry_{env_name}_e{num_expert_rollouts_pool}"
         run_name = f"{algo_name}_{actor_type}_{critic_type}_" + \
-                f"r{num_rotations}_snia_e{self._sym_expert}_n{self._sym_normal}-s{self.seed}_rotaug{num_aug_episode}_{self.group_prefix}"
+                f"r{num_rotations}-mea_e{mea_expert_eps}_n{mea_normal_eps}-iso_r{num_aug_episode}-s{self.seed}_{self.group_prefix}"
+
+        group = f"{algo_name}_{actor_type}_{critic_type}_" + \
+                f"r{num_rotations}_e{num_expert_rollouts_pool}"
 
         if self.group_prefix is not None:
-            group_name = f"{self.group_prefix}"
+            group = f"{self.group_prefix}"
 
         wandb_args = {}
         if self.chkpt_dict is not None:
@@ -424,7 +380,7 @@ class Learner:
 
         wandb.init(project=project_name,
                    settings=wandb.Settings(_disable_stats=True),
-                   group=group_name,
+                   group=group,
                    name=run_name,
                    **wandb_args)
         wandb.save(cfg_file)
@@ -623,18 +579,22 @@ class Learner:
     def collect_expert_rollouts(self, num_rollouts):
         """collect num_rollouts of trajectories in task using expert
         """
+        mea_eps = self._train_args['mea_expert_eps']
+        if mea_eps>0:
+            self.train_env.set_sym(True)
+        else:
+            self.train_env.set_sym(False)
+        num_rollouts = num_rollouts + mea_eps * num_rollouts
 
         before_env_steps = self._n_env_steps_total
         expert_ep_cnt = 0
+
+        
+
         while (expert_ep_cnt < num_rollouts):
             steps = 0
 
-            # obs = ptu.from_numpy(self.train_env.reset())  # reset
-            obs_dicts = []
-            obs_dict = self.train_env.reset()  # reset
-            obs_dicts.append(obs_dict)
-            obs = obs_dict["image"]
-            obs = ptu.from_numpy(obs)
+            obs = ptu.from_numpy(self.train_env.reset())  # reset
 
             obs = obs.reshape(1, *obs.shape)
             done_rollout = False
@@ -656,7 +616,7 @@ class Learner:
 
             while not done_rollout:
                 action = ptu.FloatTensor(
-                    [self.train_env.query_expert(expert_ep_cnt)]
+                    [self.train_env.get_oracle_action()]
                 )  # (1, A) for continuous action, (1) for discrete action
                 if not self.act_continuous:
                     action = F.one_hot(
@@ -664,10 +624,9 @@ class Learner:
                     ).float()  # (1, A)
 
                 # observe reward and next obs (B=1, dim)
-                next_obs, reward, done, info, next_obs_dict = utl.env_step(
+                next_obs, reward, done, info = utl.env_step(
                     self.train_env, action.squeeze(dim=0)
                 )
-                obs_dicts.append(next_obs_dict)
 
                 done_rollout = False if ptu.get_numpy(done[0][0]) == 0.0 else True
                 # update statistics
@@ -711,7 +670,6 @@ class Learner:
                             torch.cat(next_obs_list, dim=0)
                         ),  # (L, dim)
                         expert_masks=np.ones_like(term_list).reshape(-1, 1),  # (L, 1)
-                        obs_dicts = obs_dicts,
                     )
 
                     print(
@@ -721,6 +679,8 @@ class Learner:
                     self._n_rollouts_total += 1
 
                     expert_ep_cnt += 1
+        if mea_eps>0:
+            self.train_env.set_sym(False)
         return self._n_env_steps_total - before_env_steps
 
     @torch.no_grad()
@@ -728,17 +688,18 @@ class Learner:
         """collect num_rollouts of trajectories in task and save into policy buffer
         :param random_actions: whether to use policy to sample actions, or randomly sample action space
         """
+        mea_eps = self._train_args['mea_normal_eps']
+        if mea_eps>0:
+            self.train_env.set_sym(True)
+        else:
+            self.train_env.set_sym(False)
+        num_rollouts = num_rollouts + mea_eps * num_rollouts
 
         before_env_steps = self._n_env_steps_total
         for idx in range(num_rollouts):
             steps = 0
 
-            # obs = ptu.from_numpy(self.train_env.reset())  # reset
-            obs_dict = self.train_env.reset() # reset
-            obs_dicts = []
-            obs_dicts.append(obs_dict)
-            obs = obs_dict['image']
-            obs = ptu.from_numpy(obs)
+            obs = ptu.from_numpy(self.train_env.reset())  # reset
 
             obs = obs.reshape(1, *obs.shape)
 
@@ -746,8 +707,7 @@ class Learner:
 
             if self.agent_arch in [AGENT_ARCHS.Memory]:
                 # temporary storage
-                obs_list, act_list, rew_list, next_obs_list, term_list, obs_dict_list = (
-                    [],
+                obs_list, act_list, rew_list, next_obs_list, term_list = (
                     [],
                     [],
                     [],
@@ -784,10 +744,9 @@ class Learner:
                         action, _, _, _ = self.agent.act(obs, deterministic=False)
 
                 # observe reward and next obs (B=1, dim)
-                next_obs, reward, done, info, next_obs_dict = utl.env_step(
+                next_obs, reward, done, info = utl.env_step(
                     self.train_env, action.squeeze(dim=0)
                 )
-                obs_dicts.append(next_obs_dict)
                 if self.replay:
                     time.sleep(0.1)
 
@@ -818,7 +777,6 @@ class Learner:
                         reward=ptu.get_numpy(reward.squeeze(dim=0)),
                         terminal=np.array([term], dtype=float),
                         next_observation=ptu.get_numpy(next_obs.squeeze(dim=0)),
-                        obs_dicts = obs_dicts,
                     )
                 else:  # append tensors to temporary storage
                     obs_list.append(obs)  # (1, dim)
@@ -826,7 +784,6 @@ class Learner:
                     rew_list.append(reward)  # (1, dim)
                     term_list.append(term)  # bool
                     next_obs_list.append(next_obs)  # (1, dim)
-                    obs_dict_list.append(obs_dicts)
 
                 # set: obs <- next_obs
                 obs = next_obs.clone()
@@ -848,7 +805,6 @@ class Learner:
                         torch.cat(next_obs_list, dim=0)
                     ),  # (L, dim)
                     expert_masks=np.zeros_like(term_list).reshape(-1, 1),  # (L, 1)
-                    obs_dicts = obs_dicts,
                 )
 
                 if success:
@@ -859,6 +815,9 @@ class Learner:
             if success:
                 self._n_env_steps_total += steps
                 self._n_rollouts_total += 1
+
+        if mea_eps>0:
+            self.train_env.set_sym(False)
         return self._n_env_steps_total - before_env_steps
 
     def sample_rl_batch(self, batch_size):
@@ -904,12 +863,15 @@ class Learner:
 
     @torch.no_grad()
     def evaluate(self, tasks, deterministic=True):
-
+        self.eval_env.set_sym(False)
         num_episodes = self.max_rollouts_per_task  # k
         # max_trajectory_len = k*H
         returns_per_episode = np.zeros((len(tasks), num_episodes))
         success_rate = np.zeros(len(tasks))
         total_steps = np.zeros(len(tasks))
+
+        is_enable_sym = self.eval_env.is_enable_sym 
+        self.eval_env.set_sym(False)
 
         num_steps_per_episode = self.eval_env._max_episode_steps
         observations = None
@@ -917,10 +879,7 @@ class Learner:
         for task_idx, task in enumerate(tasks):
             step = 0
 
-            # obs = ptu.from_numpy(self.eval_env.reset())  # reset
-            obs_dict = self.eval_env.reset()  # reset
-            obs = obs_dict["image"]
-            obs = ptu.from_numpy(obs)
+            obs = ptu.from_numpy(self.eval_env.reset())  # reset
 
             obs = obs.reshape(1, *obs.shape)
 
@@ -948,7 +907,7 @@ class Learner:
                         )
 
                     # observe reward and next obs
-                    next_obs, reward, done, info, next_obs_dict = utl.env_step(
+                    next_obs, reward, done, info = utl.env_step(
                         self.eval_env, action.squeeze(dim=0)
                     )
 
@@ -973,6 +932,8 @@ class Learner:
 
                 returns_per_episode[task_idx, episode_idx] = running_reward
             total_steps[task_idx] = step
+
+        self.eval_env.set_sym(is_enable_sym)
         return returns_per_episode, success_rate, observations, total_steps
 
     def log_train_stats(self, train_stats):

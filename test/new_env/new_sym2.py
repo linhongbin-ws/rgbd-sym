@@ -6,8 +6,14 @@ from rgbd_sym.tool.plt import plot_img, plot_traj
 from rgbd_sym.tool.common import getT, TxT
 from rgbd_sym.tool.sym import generate_sym3, get_sym_params, action_inverse
 import numpy as np
+import argparse
 
-env = PomdpEnv(task = 'block_pull')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--task', type=str, default='block_pick')
+args = parser.parse_args()
+
+env = PomdpEnv(task = args.task)
 env = Occup(env)
 
 dummy_env = DummyEnv()

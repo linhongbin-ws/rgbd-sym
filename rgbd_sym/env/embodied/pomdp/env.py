@@ -5,7 +5,7 @@ from rgbd_sym.env.embodied import pomdp
 import numpy as np
 from copy import deepcopy as cp
 import pybullet as pd
-from rgbd_sym.tool.depth import get_intrinsic_matrix, occup2image, scale_K, projection_matrix_to_K
+from rgbd_sym.tool.depth import projection_matrix_to_K
 from rgbd_sym.tool.o3d import depth_image_to_point_cloud
 # from pomdp_envs import pomdp
 # from rgbd_sym.tool.common import scale_arr
@@ -18,17 +18,23 @@ class PomdpEnv(BaseEnv):
                  task='block_pull',
                  ):
         if task == 'block_pull':
-            client = gym.make("BlockPulling-Symm-v0")
+            client = gym.make("BlockPull-Sym")
+        elif task == 'block_pick':
+            client = gym.make("BlockPick-Sym")
+        elif task == 'block_push':
+            client = gym.make("BlockPush-Sym")
+        elif task == 'drawer_open':
+            client = gym.make("DrawerOpen-Sym")
+        else:
+            raise NotImplementedError
     
         super().__init__(client)
         self._task = task
         self._obs = None
-        self._eps_idx = 0
 
     def reset(self):
         self._obs = self.client.reset()
         self._obs = self._obs_proc(self._obs)
-        self._eps_idx +=1
         return self._obs
     def step(self,action):
         self._obs, reward, done, info = self.client.step(action)
@@ -38,8 +44,8 @@ class PomdpEnv(BaseEnv):
     def render(self):   
         return self._obs
     
-    def get_oracle_action(self):
-        return self.client.query_expert(self._eps_idx)
+    def query_expert(self, eps):
+        return self.client.query_expert(eps)
 
     def _mask_or(self, mask, ids):
         x = None
@@ -52,19 +58,30 @@ class PomdpEnv(BaseEnv):
     def _obs_proc(self, obs):
         new_obs = cp(obs)
         # mask process
-        mask_metadata = obs['mask_metadata']
+        mask_metadata = cp(obs['mask_metadata'])
         get_mask = lambda in_obj_data, in_link_data,  _obj_id, _obj_link_id: (in_obj_data == _obj_id) & (self._mask_or(in_link_data, _obj_link_id))
         masks = {}
-        masks['gripper'] =  obs['gripper_mask']
+        masks['gripper'] =  cp(obs['gripper_mask'])
 
 
 
         
-        if len(self.client.core_env.objects) > 0:
+        if self._task in ['block_pull','block_pick', 'block_push']:
             _obj_ids = [o.object_id for o in self.client.core_env.objects]
             for i, o_id in enumerate(_obj_ids):
                 masks['object'+str(i+1)] = get_mask(mask_metadata[0], mask_metadata[1], o_id, [-1])
-
+        elif self._task in ['drawer_open']:
+            _obj_ids = [self.client.core_env.drawer,self.client.core_env.locked_drawer,]
+            for i, o_id in enumerate(_obj_ids):
+                # links_ids = [2,3,4,6,7]
+                # links_ids = [11]
+                links_ids = np.arange(12).tolist()
+                # print("xxxxxxxxxx")
+                # print(links_ids)
+                masks['object'+str(i+1)] = get_mask(mask_metadata[0], mask_metadata[1], o_id.id,links_ids)     #2,3,4 6 7
+                handle = get_mask(mask_metadata[0], mask_metadata[1], o_id.handle.id, [-1,0,1])
+                masks['object'+str(i+1)] = np.logical_or(masks['object'+str(i+1)], handle)
+        
 
 
         
@@ -82,16 +99,23 @@ class PomdpEnv(BaseEnv):
         #     return new_obs
         
         # https://stackoverflow.com/questions/59128880/getting-world-coordinates-from-opengl-depth-buffer
-        
+        if self._task in ['block_push']:
+            goal_mask =  cp(obs['goal_mask']) # make sure "goal" at the last key
+
+            for k, v in masks.items():
+                goal_mask = goal_mask & np.logical_not(v)
+            masks['goal'] = goal_mask
+
         pc_dict = {}
         for k, v in masks.items():
             depthImg = cp(obs['depth'][0])
             if True:
-                if k!="gripper": # if objects are occluded by gripper, then fill missing pixels
+                if k not in ["gripper","goal"]: # if objects are occluded by gripper, then fill missing pixels
                     mask_except_gripper = v & np.logical_not(masks['gripper'])
                     obj_d = np.mean(depthImg[mask_except_gripper])
                     mask_overlap_gripper = v & masks['gripper']
                     depthImg[mask_overlap_gripper]  = obj_d
+
                 depth_real = depthImg
                 encode_mask = np.zeros(depth_real.shape, dtype=np.uint8)
                 encode_mask[v] = 1
@@ -167,3 +191,24 @@ class PomdpEnv(BaseEnv):
         new_obs['mask'] = masks
         new_obs['pc'] = pc_dict
         return new_obs
+    
+    @property
+    def seed(self):
+        return self._seed
+
+    @seed.setter
+    def seed(self, seed):
+        self._seed = seed
+        self.client.seed(self._seed)
+
+    @property
+    def image_space(self):
+        return self.client.image_space
+    
+    @property
+    def observation_space(self):
+        return self.client.observation_space
+
+    @property
+    def action_space(self):
+        return self.client.action_space

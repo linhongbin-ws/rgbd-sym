@@ -64,7 +64,14 @@ class Occup(BaseWrapper):
         # plt.colorbar()
         # plt.show()
         # z = -z
-        z[np.logical_not(z_mask)] = np.max(z[z_mask]) + 0.07 # the offset is the background depth
+        if self.unwrapped._task =="block_push":
+            if np.any(obs['mask']['goal']):
+                z[np.logical_not(z_mask)] = np.max(z[z_mask]) - 0.02 # the offset is the background depth
+            else:
+                z[np.logical_not(z_mask)] = np.max(z[z_mask]) + 0.07 # the offset is the background depth
+        else:
+            z[np.logical_not(z_mask)] = np.max(z[z_mask]) + 0.07 # the offset is the background depth
+            
         z = np.transpose(z)
         # z = np.flip(z, axis=0)
     

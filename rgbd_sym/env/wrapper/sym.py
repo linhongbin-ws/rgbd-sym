@@ -14,7 +14,7 @@ class Sym(BaseWrapper):
                  sym_trans_r_low=0.75,
                  sym_trans_r_high=1,
                  sym_trans_rot_low=0,
-                 sym_trans_rot_high=2*np.pi,
+                 sym_trans_rot_high=1,
                  sym_rot_low=1,
                  sym_rot_high=1,
                  sym_aug_new_eps=12,
@@ -43,36 +43,42 @@ class Sym(BaseWrapper):
 
     def reset(self,):
         self._step = 0
-        if len(self._sym_eps) == 0 and self._is_sym:
-            obs = self.env.reset()
-            reward, done, info, action = None, None, None, 0
-            self._eps_buffer.append((cp(obs), cp(reward), cp(done), cp(info), cp(action)))
-            obs['sym_action'] = action
-            obs['sym_state'] = 0
-            return obs
-        else:
+        if len(self._sym_eps) != 0 and self._is_sym:
             obs,reward, done, info, action = self._sym_eps[0][self._step]
             obs['sym_state'] = 1
             return obs
+        else:
+            obs = self.env.reset()
+            reward, done, info, action = None, None, None, 0
+            if self._is_sym:
+                self._eps_buffer = []
+                self._eps_buffer.append((cp(obs), cp(reward), cp(done), cp(info), cp(action)))
+            obs['sym_action'] = action
+            obs['sym_state'] = 0
+            return obs
+
 
 
     def step(self, action):
         self._step += 1
-        if len(self._sym_eps) == 0 and self._is_sym:
-            obs, reward, done, info = self.env.step(action)
-            obs['sym_action'] = action
-            obs['sym_state'] = 0
-            self._eps_buffer.append((cp(obs), cp(reward), cp(done), cp(info), cp(action)))
-            if done:
-                self._on_end_gt_eps()
-            return obs, reward, done, info
-
-        else:
+        if len(self._sym_eps) != 0 and self._is_sym:
             obs,reward, done, info, action = self._sym_eps[0][self._step]
             obs['sym_state'] = 1
             if done:
                 self._sym_eps = self._sym_eps[1:]
+        else:
+            obs, reward, done, info = self.env.step(action)
+            obs['sym_action'] = action
+            obs['sym_state'] = 0
+            if self._is_sym:
+                self._eps_buffer.append((cp(obs), cp(reward), cp(done), cp(info), cp(action)))
+                if done:
+                    self._on_end_gt_eps()
+            return obs, reward, done, info
+
+
         return obs, reward, done, info
+
 
     
     def _on_end_gt_eps(self,):
@@ -87,7 +93,7 @@ class Sym(BaseWrapper):
         for _ in range(self._sym_aug_new_eps):
             sym_trans_z = np.random.uniform(self._sym_trans_z_low, self._sym_trans_z_high)
             sym_trans_r = np.random.uniform(self._sym_trans_r_low, self._sym_trans_r_high)
-            sym_trans_rot = np.random.uniform(self._sym_trans_rot_low, self._sym_trans_rot_high)
+            sym_trans_rot = np.random.uniform(self._sym_trans_rot_low, self._sym_trans_rot_high * 2 * np.pi)
             sym_rot = np.random.uniform(self._sym_rot_low, self._sym_rot_high)
             new_sym_obs, new_sym_actions = generate_sym3(obss_origin,actions_origin,
                                                         sym_trans_z=sym_trans_z, 
@@ -115,6 +121,10 @@ class Sym(BaseWrapper):
 
     def set_sym(self, is_sym):
         self._is_sym = is_sym
+
+    @property
+    def is_enable_sym(self):
+        return self._is_sym
 
 
     @property

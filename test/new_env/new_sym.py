@@ -9,8 +9,14 @@ import gym
 import matplotlib.pyplot as plt
 from rgbd_sym.tool.plt import plot_img, plot_traj
 import numpy as np
+import argparse
 
-env = PomdpEnv(task = 'block_pull')
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--task', type=str, default='block_pick')
+args = parser.parse_args()
+
+env = PomdpEnv(task = args.task)
 env = Occup(env)
 obss = []
 obs = env.reset()

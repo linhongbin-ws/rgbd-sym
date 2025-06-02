@@ -24,9 +24,9 @@ class BaseEnv(ABC):
     def render(self, mode="human"):  # ['human', 'rgb_array', 'mask_array']
         return self.client.render(mode=mode)
 
-    @abstractmethod
-    def get_oracle_action(self, obs):
-        return self.client.get_oracle_action(obs)
+    # @abstractmethod
+    # def get_oracle_action(self, obs):
+    #     return self.client.get_oracle_action(obs)
 
     def to_train(self):
         pass

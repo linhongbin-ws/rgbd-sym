@@ -12,10 +12,12 @@ class DummyEnv(BaseEnv):
                  delta_rot=  np.pi / 8,
                  **args):
         client = None
+        self._seed = 0
         super().__init__(client)
 
         self._delta_transl = delta_transl
         self._delta_rot = delta_rot
+        
 
     def get_oracle_action(self):
         pass
@@ -60,4 +62,26 @@ class DummyEnv(BaseEnv):
 
     def set_current_points(self, points):
         self._points = cp(points)
+
+    
+    @property
+    def seed(self):
+        return self._seed
+
+    @seed.setter
+    def seed(self, seed):
+        self._seed = seed
+        self.client.seed(self._seed)
+
+    @property
+    def image_space(self):
+        return self.client.image_space
+    
+    @property
+    def observation_space(self):
+        return self.client.observation_space
+
+    @property
+    def action_space(self):
+        return self.client.action_space
 
