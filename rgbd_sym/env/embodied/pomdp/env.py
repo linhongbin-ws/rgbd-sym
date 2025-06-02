@@ -47,6 +47,7 @@ class PomdpEnv(BaseEnv):
             out = mask == _id
             x = out if x is None else x | out
         return x
+
     
     def _obs_proc(self, obs):
         new_obs = cp(obs)
@@ -55,10 +56,18 @@ class PomdpEnv(BaseEnv):
         get_mask = lambda in_obj_data, in_link_data,  _obj_id, _obj_link_id: (in_obj_data == _obj_id) & (self._mask_or(in_link_data, _obj_link_id))
         masks = {}
         masks['gripper'] =  obs['gripper_mask']
+
+
+
+        
         if len(self.client.core_env.objects) > 0:
             _obj_ids = [o.object_id for o in self.client.core_env.objects]
             for i, o_id in enumerate(_obj_ids):
                 masks['object'+str(i+1)] = get_mask(mask_metadata[0], mask_metadata[1], o_id, [-1])
+
+
+
+        
         # else:
         #     _obj_ids = [self.drawer,self.locked_drawer,]
         #     for i, o_id in enumerate(_obj_ids):
@@ -78,8 +87,11 @@ class PomdpEnv(BaseEnv):
         for k, v in masks.items():
             depthImg = cp(obs['depth'][0])
             if True:
-                
-
+                if k!="gripper": # if objects are occluded by gripper, then fill missing pixels
+                    mask_except_gripper = v & np.logical_not(masks['gripper'])
+                    obj_d = np.mean(depthImg[mask_except_gripper])
+                    mask_overlap_gripper = v & masks['gripper']
+                    depthImg[mask_overlap_gripper]  = obj_d
                 depth_real = depthImg
                 encode_mask = np.zeros(depth_real.shape, dtype=np.uint8)
                 encode_mask[v] = 1

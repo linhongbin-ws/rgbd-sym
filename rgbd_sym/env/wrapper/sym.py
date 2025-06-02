@@ -9,6 +9,15 @@ class Sym(BaseWrapper):
 
     def __init__(self, env,
                  dummy_env,
+                 sym_trans_z_low=0.75,
+                 sym_trans_z_high=1,
+                 sym_trans_r_low=0.75,
+                 sym_trans_r_high=1,
+                 sym_trans_rot_low=0,
+                 sym_trans_rot_high=2*np.pi,
+                 sym_rot_low=1,
+                 sym_rot_high=1,
+                 sym_aug_new_eps=12,
                  **kwargs,
                  ):
         super().__init__(env)
@@ -17,6 +26,20 @@ class Sym(BaseWrapper):
         self._eps_buffer = []
         self._is_sym = True
         self._step = 0
+
+        self._sym_trans_z_low = sym_trans_z_low 
+        self._sym_trans_z_high = sym_trans_z_high 
+
+        self._sym_trans_r_low = sym_trans_r_low 
+        self._sym_trans_r_high = sym_trans_r_high 
+
+        self._sym_trans_rot_low = sym_trans_rot_low 
+        self._sym_trans_rot_high = sym_trans_rot_high
+
+        self._sym_rot_low = sym_rot_low 
+        self._sym_rot_high = sym_rot_high  
+
+        self._sym_aug_new_eps = sym_aug_new_eps
 
     def reset(self,):
         self._step = 0
@@ -59,15 +82,14 @@ class Sym(BaseWrapper):
 
 
 
-        sym_trans_z = 0.5
-        sym_trans_r = 1
-        sym_trans_rots = np.linspace(0, np.pi * 2, 4, endpoint=False).tolist()
-        sym_rot = 0
         new_sym_obss = []
         new_sym_actionss = []
-        for sym_trans_rot in sym_trans_rots:
+        for _ in range(self._sym_aug_new_eps):
+            sym_trans_z = np.random.uniform(self._sym_trans_z_low, self._sym_trans_z_high)
+            sym_trans_r = np.random.uniform(self._sym_trans_r_low, self._sym_trans_r_high)
+            sym_trans_rot = np.random.uniform(self._sym_trans_rot_low, self._sym_trans_rot_high)
+            sym_rot = np.random.uniform(self._sym_rot_low, self._sym_rot_high)
             new_sym_obs, new_sym_actions = generate_sym3(obss_origin,actions_origin,
-                                                        sym_end_step=4, 
                                                         sym_trans_z=sym_trans_z, 
                                                         sym_trans_r=sym_trans_r, 
                                                         sym_trans_rot=sym_trans_rot, 
@@ -85,7 +107,7 @@ class Sym(BaseWrapper):
                 reward = cp(self._eps_buffer[j][1])
                 done = cp(self._eps_buffer[j][2])
                 info = cp(self._eps_buffer[j][3])
-                action = 0 if j == 0 else cp(new_sym_actionss[i][j-1])
+                action = np.zeros(5) if j == 0 else cp(new_sym_actionss[i][j-1])
                 obs['sym_action']  = action
                 _ep.append((obs, reward, done, info, action,))
             self._sym_eps.append(_ep)
@@ -98,8 +120,8 @@ class Sym(BaseWrapper):
     @property
     def observation_space(self):
         obs = {k: v for k, v in self.env.observation_space.items()}
-        obs['sym_action'] = gym.spaces.Box(low=0,
-                                          high=8, shape=(1,), dtype=float)
+        obs['sym_action'] = gym.spaces.Box(low=-1,
+                                          high=1, shape=(5,), dtype=float)
         obs['sym_state'] = gym.spaces.Box(low=0,
                                           high=1, shape=(1,), dtype=float)
         return gym.spaces.Dict(obs)

@@ -39,9 +39,9 @@ class Occup(BaseWrapper):
             points = v if points is None else np.concatenate((points, v), axis=0)
 
         points[:,2] = points[:,2] - np.min(points[:,2])
-        print(f"x: {np.min(points[:,0])} {np.max(points[:,0])}", end= " ")
-        print(f"y: {np.min(points[:,1])} {np.max(points[:,1])}", end= " ")
-        print(f"z: {np.min(points[:,2])} {np.max(points[:,2])}",)
+        # print(f"x: {np.min(points[:,0])} {np.max(points[:,0])}", end= " ")
+        # print(f"y: {np.min(points[:,1])} {np.max(points[:,1])}", end= " ")
+        # print(f"z: {np.min(points[:,2])} {np.max(points[:,2])}",)
         occ_mat = pointclouds2occupancy(
             points,
             occup_h=self._occup_res,

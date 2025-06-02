@@ -20,12 +20,15 @@ obss_origin.append(obs)
 actions_origin = []
 done = False
 
+gripper_state = 0
 while not done:
+    gripper_state-= 0.2
     action = env.get_oracle_action()
+    action[0] = gripper_state
     obs,reward, done, info = env.step(action)
     obss_origin.append(obs)
     actions_origin.append(action)
-
+    # print("gripper_pos z: ",obs['gripper_pos'][2])
 
 
 dummy_env = DummyEnv(                 
@@ -33,7 +36,7 @@ dummy_env = DummyEnv(
                  delta_rot =  np.pi / 8)
 dummy_env = Occup(dummy_env)
 
-sym_trans_z = 0.5
+sym_trans_z = 1
 sym_trans_r = 1
 sym_trans_rots = np.linspace(0, np.pi * 2, 4, endpoint=False).tolist()
 sym_rot = 0
@@ -41,7 +44,7 @@ new_sym_obss = []
 new_sym_actionss = []
 for sym_trans_rot in sym_trans_rots:
     new_sym_obs, new_sym_actions = generate_sym3(obss_origin,actions_origin,
-                                                sym_end_step=4, 
+                                                sym_end_step=None, 
                                                 sym_trans_z=sym_trans_z, 
                                                 sym_trans_r=sym_trans_r, 
                                                 sym_trans_rot=sym_trans_rot, 
@@ -53,9 +56,9 @@ for sym_trans_rot in sym_trans_rots:
 
 
 
-for i in range(len(actions_origin)):
-    # print(f"actions_origin err: {actions_origin[i]-new_sym_actions[i]}")
-    print(actions_origin[i][1:4])
+# for i in range(len(actions_origin)):
+#     # print(f"actions_origin err: {actions_origin[i]-new_sym_actions[i]}")
+#     print(actions_origin[i][1:4])
 
 
 
@@ -91,7 +94,7 @@ trajTs = [a2T(action_inverse(a)) for a in reversed(actions_origin)]
 trajTs = aggTs(trajTs)
 points_mats = []
 pc_mat = {}
-print(trajTs[0])
+# print(trajTs[0])
 pc_mat["mat"] = np.array([[t[0][3], t[1][3], t[2][3]] for t in trajTs])
 pc_mat["linewidth"] = 4
 pc_mat["alpha"] = 1

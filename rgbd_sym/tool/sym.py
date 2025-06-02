@@ -544,15 +544,14 @@ def generate_sym3(obs, origin_actions,
                   sym_trans_z, sym_trans_r, sym_trans_rot, sym_rot,
                  sym_start_step=None,
                   sym_end_step=None,
-                  sym_cover_origin_traj=False,
-                  *kwargs
+                  sym_end_z_thres = 0.15,
                   ):
     if sym_start_step is None:
         sym_start_step = 0
     if sym_end_step is None:
         ids = [(i,o) for i, o in enumerate(obs)]
         for _o in ids:
-            if _o[1]['gripper_pos'][2]<  0.1:
+            if _o[1]['gripper_pos'][2]<  sym_end_z_thres:
                 break
         sym_end_step = _o[0]
 
@@ -602,6 +601,7 @@ def action_sym(a, sym_trans_z, sym_trans_r, sym_trans_rot, sym_rot):
 
         
 def action_inverse(a):
+    # print(a)
     new_a = np.zeros(a.shape, dtype=a.dtype)
     new_a[0] = a[0]
     new_a[1:4] = -a[1:4]
