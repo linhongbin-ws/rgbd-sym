@@ -616,7 +616,7 @@ class Learner:
 
             while not done_rollout:
                 action = ptu.FloatTensor(
-                    [self.train_env.get_oracle_action()]
+                    [self.train_env.query_expert(expert_ep_cnt)]
                 )  # (1, A) for continuous action, (1) for discrete action
                 if not self.act_continuous:
                     action = F.one_hot(

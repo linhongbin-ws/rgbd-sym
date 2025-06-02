@@ -2,10 +2,27 @@ seed: 73
 cuda: 0 # use_gpu
 env:
   env_type: pomdp
-  env_name: BlockPicking-Symm-v0
+  env_name: block_pull
+
   num_eval_tasks: 10 # num of eval episodes
 
+  # rgbd_sym
+  sym_trans_z_low: 0.75
+  sym_trans_z_high: 1
+  sym_trans_r_low: 0.75
+  sym_trans_r_high: 1
+  sym_trans_rot_low: 0
+  sym_trans_rot_high: 1
+  sym_rot_low: 1
+  sym_rot_high: 1
+
+
 train:
+
+  mea_expert_eps: 0
+  mea_normal_eps: 0
+  
+
   # 100*50 = 50k steps
   num_iters: 800 # number meta-training iterates
   num_init_rollouts_pool: 20 # before training
@@ -22,18 +39,18 @@ train:
   num_aug_episode: 4
 
 eval:
-  log_interval: 10 # num of iters
-  save_interval: -1
+  log_interval: 5 # num of iters
+  save_interval: 40
   log_tensorboard: false
 
 policy:
   separate: True
-  actor_type: normal # [normal, equi]
-  critic_type: normal # [normal, equi]
+  actor_type: equi # [normal, equi]
+  critic_type: equi # [normal, equi]
   algo_name: sac # [sac, td3]
 
   num_rotations: 4 # group
-  flip_symmetry: true
+  flip_symmetry: false # using dihedral group or not
 
   action_embedding_size: 16 # no action input
   observ_embedding_size: 0 # use image encoder
