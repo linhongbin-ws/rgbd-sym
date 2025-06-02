@@ -8,9 +8,11 @@ from rgbd_sym.tool.common import getT
 
 class DummyEnv(BaseEnv):
     def __init__(self,
+                 task,
                  delta_transl= 1,
                  delta_rot=  np.pi / 8,
                  **args):
+        self._task = task
         client = None
         self._seed = 0
         super().__init__(client)

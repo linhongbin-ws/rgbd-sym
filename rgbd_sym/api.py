@@ -11,7 +11,7 @@ def make_env(task, seed=0, sym=True, **kwargs):
     env = PomdpEnv(task = task)
     env = Occup(env)
 
-    dummy_env = DummyEnv()
+    dummy_env = DummyEnv(task = task)
     dummy_env = Occup(dummy_env)
 
 
