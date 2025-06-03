@@ -675,8 +675,10 @@ class Learner:
                     print(
                         f"expert steps: {steps} term: {term} ret: {torch.cat(rew_list, dim=0).sum().item():.2f}"
                     )
-                    self._n_env_steps_total += steps
-                    self._n_rollouts_total += 1
+                    
+                    if not self.train_env.sym_state:
+                        self._n_env_steps_total += steps
+                        self._n_rollouts_total += 1
 
                     expert_ep_cnt += 1
         if mea_eps>0:
@@ -813,8 +815,9 @@ class Learner:
                     )
 
             if success:
-                self._n_env_steps_total += steps
-                self._n_rollouts_total += 1
+                if not self.train_env.sym_state:
+                    self._n_env_steps_total += steps
+                    self._n_rollouts_total += 1
 
         if mea_eps>0:
             self.train_env.set_sym(False)

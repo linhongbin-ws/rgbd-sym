@@ -41,11 +41,16 @@ class Sym(BaseWrapper):
 
         self._sym_aug_new_eps = sym_aug_new_eps
 
+        self._gt_steps = 0
+        self._gt_rollouts = 0
+
     def reset(self,):
         self._step = 0
+        self._gt_rollouts+=1
         if len(self._sym_eps) != 0 and self._is_sym:
             obs,reward, done, info, action = self._sym_eps[0][self._step]
             obs['sym_state'] = 1
+            self._sym_state = obs['sym_state']
             return obs
         else:
             obs = self.env.reset()
@@ -55,6 +60,7 @@ class Sym(BaseWrapper):
                 self._eps_buffer.append((cp(obs), cp(reward), cp(done), cp(info), cp(action)))
             obs['sym_action'] = action
             obs['sym_state'] = 0
+            self._sym_state = obs['sym_state']
             return obs
 
 
@@ -64,12 +70,15 @@ class Sym(BaseWrapper):
         if len(self._sym_eps) != 0 and self._is_sym:
             obs,reward, done, info, action = self._sym_eps[0][self._step]
             obs['sym_state'] = 1
+            self._sym_state = obs['sym_state']
             if done:
                 self._sym_eps = self._sym_eps[1:]
         else:
             obs, reward, done, info = self.env.step(action)
+            self._gt_steps+=1
             obs['sym_action'] = action
             obs['sym_state'] = 0
+            self._sym_state = obs['sym_state']
             if self._is_sym:
                 self._eps_buffer.append((cp(obs), cp(reward), cp(done), cp(info), cp(action)))
                 if done:
@@ -135,4 +144,15 @@ class Sym(BaseWrapper):
         obs['sym_state'] = gym.spaces.Box(low=0,
                                           high=1, shape=(1,), dtype=float)
         return gym.spaces.Dict(obs)
+    @property
+    def gt_steps(self):
+        return self._gt_steps
+
+    @property
+    def gt_rollouts(self):
+        return self._gt_rollouts
+    
+    @property
+    def sym_state(self):
+        return self._sym_state
         
