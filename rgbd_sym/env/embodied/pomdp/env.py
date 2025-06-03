@@ -192,6 +192,8 @@ class PomdpEnv(BaseEnv):
         new_obs['pc'] = pc_dict
         return new_obs
     
+
+    
     @property
     def seed(self):
         return self._seed
@@ -212,3 +214,10 @@ class PomdpEnv(BaseEnv):
     @property
     def action_space(self):
         return self.client.action_space
+    
+    def __getattr__(self, name):
+        """__getattr__ is only invoked if the attribute wasn't found the usual ways."""
+        # if name[0] == "_":
+        #     raise Exception("cannot find {}".format(name))
+        # else:
+        return getattr(self.client, name)
