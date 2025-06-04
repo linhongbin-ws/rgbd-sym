@@ -155,4 +155,24 @@ class Sym(BaseWrapper):
     @property
     def sym_state(self):
         return self._sym_state
-        
+    
+    def mea_rollouts(self, eps):
+        self._sym_aug_new_eps = eps
+    
+    # @property
+    # def sym_aug_new_eps(self):
+    #     return self._sym_aug_new_eps
+    
+    # @sym_aug_new_eps.setter
+    # def sym_aug_new_eps(self, eps):
+    #     self._sym_aug_new_eps = eps
+
+
+    # @property
+    # def seed(self):
+    #     return self._seed
+
+    # @seed.setter
+    # def seed(self, seed):
+    #     self._seed = seed
+    #     self.client.seed(self._seed)

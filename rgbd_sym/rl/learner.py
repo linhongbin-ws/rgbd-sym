@@ -581,6 +581,8 @@ class Learner:
         """
         mea_eps = self._train_args['mea_expert_eps']
         if mea_eps>0:
+            print("mea_eps",mea_eps)
+            self.train_env.mea_rollouts(mea_eps)
             self.train_env.set_sym(True)
         else:
             self.train_env.set_sym(False)
@@ -692,6 +694,7 @@ class Learner:
         """
         mea_eps = self._train_args['mea_normal_eps']
         if mea_eps>0:
+            self.train_env.mea_rollouts(mea_eps)
             self.train_env.set_sym(True)
         else:
             self.train_env.set_sym(False)
