@@ -43,9 +43,17 @@ flags.DEFINE_string("prefix", None, "prefix of wandb group")
 flags.DEFINE_boolean("debug", False, "debug mode")
 flags.DEFINE_boolean("replay", False, "replay/train mode")
 
+flags.DEFINE_integer("mea_expert", None, "num experts episode used")
+flags.DEFINE_integer("mea_normal", None, "num experts episode used")
+
 flags.FLAGS(sys.argv)
 yaml = YAML()
 v = yaml.load(open(FLAGS.cfg))
+
+if FLAGS.mea_expert is not None:
+    v["train"]["mea_expert_eps"] = FLAGS.mea_expert
+if FLAGS.mea_normal is not None:
+    v["train"]["mea_normal_eps"] = FLAGS.mea_normal
 
 # overwrite config params
 if FLAGS.env is not None:
