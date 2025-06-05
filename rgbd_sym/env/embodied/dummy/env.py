@@ -46,6 +46,7 @@ class DummyEnv(BaseEnv):
                                         rot_type="euler")
         _transform_dict['object2'] = cp(_transform_dict['object1'])
         _transform_dict['object3'] = cp(_transform_dict['object1'])
+        _transform_dict['goal'] = cp(_transform_dict['object1'])
         
         new_points = {}
         for k, _pc in self._points.items():
