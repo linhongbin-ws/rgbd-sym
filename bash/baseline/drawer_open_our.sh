@@ -4,7 +4,7 @@ gpu_id=${2:-0}
 seed=${3:-0}
 demon=${4:-80}
 mea_expert=${5:-12}
-mea_normal=${6:0}
+mea_normal=${6:-0}
 CUDA_VISIBLE_DEVICES=${gpu_id} python ./rgbd_sym/rl/main.py \
  --cfg configs/drawer_open/mea-rnn-equi-all.yml \
  --algo sac --seed ${seed} --cuda 0 --num_expert_episodes ${demon} \
