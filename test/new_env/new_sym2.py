@@ -16,7 +16,7 @@ args = parser.parse_args()
 env = PomdpEnv(task = args.task)
 env = Occup(env)
 
-dummy_env = DummyEnv()
+dummy_env = DummyEnv(task = args.task)
 dummy_env = Occup(dummy_env)
 
 
@@ -33,7 +33,7 @@ for i in range(5):
     actions = []
     sym_action = []
     while not done:
-        action = env.get_oracle_action()
+        action = env.query_expert(1)
         obs,reward, done, info = env.step(action)
         obss_origin.append(obs)
         actions.append(action)
