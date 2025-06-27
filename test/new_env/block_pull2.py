@@ -17,10 +17,31 @@ obss = []
 obs = env.reset()
 obss.append(obs)
 
+import sys
+sys.path.append("./ext/equi-rl-for-pomdps/pomdp-domains/")
+if args.task == "block_pull":
+    from pdomains.block_pulling import BlockEnv
+    clss = BlockEnv
+    query_id = 0
+elif args.task == "block_pick":
+    from pdomains.block_picking import BlockEnv
+    clss = BlockEnv
+    query_id = 0
+
+elif args.task == "block_push":
+    from pdomains.block_pushing import BlockEnv
+    clss = BlockEnv
+    query_id = 1
+
+elif args.task == "drawer_open":
+    from pdomains.drawer_opening import DrawerEnv
+    clss = DrawerEnv
+    query_id = 0
+
 
 done = False
 while not done:
-    action = env.query_expert(1)
+    action = env.query_expert(query_id)
     obs, reward, done, info = env.step(action)
     obss.append(obs)
 
@@ -33,29 +54,18 @@ for k, v in obss[0]['mask'].items():
 plt_data.append([o['occup_image'] for o in obss])
 
 
-if args.task == "block_pull":
-    from pdomains.block_pulling import BlockEnv
-    clss = BlockEnv
-elif args.task == "block_pick":
-    from pdomains.block_picking import BlockEnv
-    clss = BlockEnv
-elif args.task == "block_push":
-    from pdomains.block_pushing import BlockEnv
-    clss = BlockEnv
-elif args.task == "drawer_open":
-    from pdomains.drawer_opening import DrawerEnv
-    clss = DrawerEnv
 
 
 env = clss()
 obss = []
+obs = env.reset()
 obs = env.reset()
 obss.append(obs)
 
 
 done = False
 while not done:
-    action = env.query_expert(1)
+    action = env.query_expert(query_id)
     obs, reward, done, info = env.step(action)
     # print(obs)
     obss.append(obs)
