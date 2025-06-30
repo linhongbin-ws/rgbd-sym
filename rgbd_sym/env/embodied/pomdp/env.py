@@ -203,9 +203,9 @@ class PomdpEnv(BaseEnv):
         self._seed = seed
         self.client.seed(self._seed)
 
-    @property
-    def image_space(self):
-        return self.client.image_space
+    # @property
+    # def image_space(self):
+    #     return self.client.image_space
     
     @property
     def observation_space(self):

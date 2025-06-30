@@ -193,7 +193,7 @@ class Learner:
                 actor_encoder = ImageEncoder
 
             actor_image_encoder_fn = lambda: actor_encoder(
-                image_shape=self.train_env.image_space.shape, **image_encoder,
+                image_shape=self.train_env.observation_space.shape, **image_encoder,
                 group_helper=group_helper
             )
 
@@ -203,7 +203,7 @@ class Learner:
                 critic_encoder = ImageEncoder
 
             critic_image_encoder_fn = lambda: critic_encoder(
-                image_shape=self.train_env.image_space.shape, **image_encoder,
+                image_shape=self.train_env.observation_space.shape, **image_encoder,
                 group_helper=group_helper
             )
 
