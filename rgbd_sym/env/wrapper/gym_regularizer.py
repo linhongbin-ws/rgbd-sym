@@ -34,8 +34,8 @@ class GymRegularizer(BaseWrapper):
             occup_image = obs['occup_image']
         new_obs[0,:,:] = occup_image
         return new_obs
-    # @property
-    # def observation_space(self):
-    #     obs = self.env.observation_space
-    #     new_obs = {k: v for k,v in obs.items() if k in self._obs_key}
-    #     return gym.spaces.Dict(new_obs)
+    
+    @property
+    def observation_space(self):
+        obs_space = gym.spaces.Box(low=0, high=1,shape=(2,84,84), dtype=np.float32)
+        return obs_space
