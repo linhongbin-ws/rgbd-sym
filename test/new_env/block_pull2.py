@@ -45,6 +45,8 @@ while not done:
     obs, reward, done, info = env.step(action)
     obss.append(obs)
 
+print(env.observation_space)
+
 plt_data = [[o['image'][0,:,:] - np.min(o['image'][0,:,:])  for o in obss]]
 
 for k, v in obss[0]['mask'].items():
@@ -71,7 +73,26 @@ while not done:
     obss.append(obs)
 
 plt_data.append([o[0,:,:] for o in obss])
+plt_data.append([o[1,:,:] for o in obss])
+
+
+
+from rgbd_sym.api import make_env
+
+env = make_env(task=args.task)
+
+obss = []
+obs = env.reset()
+obss.append(obs)
+done = False
+while not done:
+    action = env.query_expert(query_id)
+    obs, reward, done, info = env.step(action)
+    obss.append(obs)
+
+plt_data.append([o[0,:,:] for o in obss])
+plt_data.append([o[1,:,:] for o in obss])
+
 
 plot_img(plt_data)
-
 
