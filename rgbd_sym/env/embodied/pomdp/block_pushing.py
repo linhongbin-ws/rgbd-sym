@@ -12,7 +12,7 @@ import math
 import torch
 
 class BlockEnv(gym.Env):
-    def __init__(self, seed=0, img_size=84, rendering=False, robot='kuka', action_sequence='pxyzr', noise=False):
+    def __init__(self, seed=0, img_size=600, rendering=False, robot='kuka', action_sequence='pxyzr', noise=False):
 
         workspace = np.asarray([[0.3, 0.7],
                                 [-0.2, 0.2],
@@ -20,7 +20,7 @@ class BlockEnv(gym.Env):
 
         self.image_size = img_size
         # in RAD envs, image_size is greater than true_image_size
-        self.true_image_size = 84
+        self.true_image_size = 600
 
         self.env_config = {'workspace': workspace, 'max_steps': 100, 'obs_size': self.image_size, 'render': False, 'fast_mode': True,
                         'seed': seed, 'action_sequence': action_sequence, 'num_objects': 1, 'random_orientation': True,
