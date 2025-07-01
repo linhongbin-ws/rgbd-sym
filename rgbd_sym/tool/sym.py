@@ -598,7 +598,7 @@ def action_sym(a, sym_trans_z, sym_trans_r, sym_trans_rot, sym_rot):
     new_a[1:3] =  new_a[1:3] * sym_trans_r
     new_a[3] =  new_a[3] * sym_trans_z
     R = np.array([[np.cos(sym_trans_rot), -np.sin(sym_trans_rot), 0 ],
-                  [-np.sin(sym_trans_rot),np.cos(sym_trans_rot), 0],
+                  [np.sin(sym_trans_rot),np.cos(sym_trans_rot), 0],
                   [0,0, 1]])
     new_a[1:4] =  np.matmul(new_a[1:4], R)
     new_a[4] = new_a[4] + np.random.uniform(-1,1,)*sym_rot
