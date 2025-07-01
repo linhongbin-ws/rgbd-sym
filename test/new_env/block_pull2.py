@@ -22,7 +22,7 @@ sys.path.append("./ext/equi-rl-for-pomdps/pomdp-domains/")
 if args.task == "block_pull":
     from pdomains.block_pulling import BlockEnv
     clss = BlockEnv
-    query_id = 0
+    query_id = 1
 elif args.task == "block_pick":
     from pdomains.block_picking import BlockEnv
     clss = BlockEnv

@@ -12,7 +12,7 @@ class Occup(BaseWrapper):
                  pc_y_min = -0.2,
                  pc_z_min = 0,
                  pc_range = 0.4,
-                 occup_res = 60,
+                 occup_res = 200,
                  **kwargs):
         super().__init__(env, **kwargs)
         self._out_background_encoding = out_background_encoding
@@ -23,18 +23,18 @@ class Occup(BaseWrapper):
         self._pc_z_min = pc_z_min
         self._occup_res = occup_res
 
-        if self.unwrapped._task == "block_push":
-            # self._pc_range =  0.2
-            # self._pc_x_min = -0.1
-            # self._pc_y_min = -0.1
-            # self._pc_z_min = 0
-            self._occup_res = 200
-        if self.unwrapped._task == "block_pick":
-            # self._pc_range =  0.2
-            # self._pc_x_min = -0.1
-            # self._pc_y_min = -0.1
-            # self._pc_z_min = 0
-            self._occup_res = 200
+        # if self.unwrapped._task == "block_push":
+        #     # self._pc_range =  0.2
+        #     # self._pc_x_min = -0.1
+        #     # self._pc_y_min = -0.1
+        #     # self._pc_z_min = 0
+        #     self._occup_res = 200
+        # if self.unwrapped._task == "block_pick":
+        #     # self._pc_range =  0.2
+        #     # self._pc_x_min = -0.1
+        #     # self._pc_y_min = -0.1
+        #     # self._pc_z_min = 0
+        #     self._occup_res = 200
 
 
 
