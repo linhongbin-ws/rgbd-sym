@@ -15,8 +15,8 @@ class Sym(BaseWrapper):
                  sym_trans_r_high=1,
                  sym_trans_rot_low=0,
                  sym_trans_rot_high=1,
-                 sym_rot_low=1,
-                 sym_rot_high=1,
+                 sym_rot_low=0,
+                 sym_rot_high=0.3,
                  sym_aug_new_eps=12,
                  **kwargs,
                  ):
