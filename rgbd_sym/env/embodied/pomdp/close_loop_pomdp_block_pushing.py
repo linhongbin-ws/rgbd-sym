@@ -15,7 +15,7 @@ class CloseLoopPomdpBlockPushingEnv(CloseLoopEnv):
     self.goal_id = None
     # self.goal_grid_size_half = 10
     # self.goal_size = self.goal_grid_size_half*2 * self.heightmap_resolution
-    self.goal_size = 0.09
+    self.goal_size = 0.09 * 2.5
     self.goal_grid_size_half = round(self.goal_size / self.heightmap_resolution / 2)
     self.target_obj_idx = 0
 
