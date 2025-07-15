@@ -15,12 +15,12 @@ env:
   sym_trans_rot_high: 1
   sym_rot_low: 1
   sym_rot_high: 1
-  obs_type: occup
+  obs_type: image
 
 
 train:
 
-  mea_expert_eps: 12
+  mea_expert_eps: 0
   mea_normal_eps: 0
   
 

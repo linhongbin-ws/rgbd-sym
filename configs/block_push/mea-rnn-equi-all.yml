@@ -15,6 +15,7 @@ env:
   sym_trans_rot_high: 1
   sym_rot_low: 1
   sym_rot_high: 1
+  obs_type: occup
 
 
 train:

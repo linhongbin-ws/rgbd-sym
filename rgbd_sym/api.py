@@ -7,7 +7,7 @@ import rgbd_sym.env.embodied as ebd
 from rgbd_sym.tool.config import Config
 
 
-def make_env(task, seed=0, sym=True, **kwargs):
+def make_env(task, seed=0, sym=True, obs_type='occup', **kwargs):
     env = PomdpEnv(task = task)
     env = Occup(env)
 
@@ -16,7 +16,7 @@ def make_env(task, seed=0, sym=True, **kwargs):
 
 
     env = Sym(env, dummy_env, **kwargs)
-    env = GymRegularizer(env)
+    env = GymRegularizer(env, obs_type = obs_type)
     if sym:
         env.set_sym(True)
     else:

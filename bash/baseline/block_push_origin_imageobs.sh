@@ -1,0 +1,9 @@
+source bash/init.sh
+prefix=${1:-" "}
+gpu_id=${2:-0}
+seed=${3:-0}
+demon=${4:-80}
+CUDA_VISIBLE_DEVICES=${gpu_id} python ./rgbd_sym/rl/main.py \
+ --cfg configs/block_push/rnn-equi-all-obs-origin.yml \
+ --algo sac --seed ${seed} --cuda 0 --num_expert_episodes ${demon} \
+ --prefix ${prefix} 

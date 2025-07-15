@@ -2,10 +2,10 @@ seed: 73
 cuda: 0 # use_gpu
 env:
   env_type: pomdp
-  env_name: block_pull
+  env_name: block_pick
 
   num_eval_tasks: 10 # num of eval episodes
-
+  
   # rgbd_sym
   sym_trans_z_low: 0.75
   sym_trans_z_high: 1
@@ -15,14 +15,14 @@ env:
   sym_trans_rot_high: 1
   sym_rot_low: 1
   sym_rot_high: 1
-  obs_type: occup
+  obs_type: image
 
 
 train:
 
-  mea_expert_eps: 12
+  mea_expert_eps: 0
   mea_normal_eps: 0
-  
+
 
   # 100*50 = 50k steps
   num_iters: 800 # number meta-training iterates
@@ -40,8 +40,8 @@ train:
   num_aug_episode: 4
 
 eval:
-  log_interval: 5 # num of iters
-  save_interval: 40
+  log_interval: 10 # num of iters
+  save_interval: -1
   log_tensorboard: false
 
 policy:
@@ -51,7 +51,7 @@ policy:
   algo_name: sac # [sac, td3]
 
   num_rotations: 4 # group
-  flip_symmetry: false # using dihedral group or not
+  flip_symmetry: true
 
   action_embedding_size: 16 # no action input
   observ_embedding_size: 0 # use image encoder

@@ -7,8 +7,10 @@ import cv2
 
 class GymRegularizer(BaseWrapper):
     def __init__(self, env,
+                 obs_type = "occup",
                  **kwargs,
                  ):
+        self._obs_type = obs_type
         super().__init__(env,)
 
     def reset(self,):
@@ -22,7 +24,11 @@ class GymRegularizer(BaseWrapper):
         return obs, reward, done, info
     
     def _obs_proc(self , obs):
-        layer0 = cp(obs['occup_image'])
+        if self._obs_type == "occup":
+            layer0 = cp(obs['occup_image'])
+        elif self._obs_type == "image":
+             layer0 = cp(obs['image'][0,:,:])
+
         layer1 = cp(obs['image'][1,:,:])
 
         s = 84
