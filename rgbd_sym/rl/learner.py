@@ -358,12 +358,13 @@ class Learner:
         mea_expert_eps,
         mea_normal_eps,
         num_aug_episode,
+        obs_type,
         **kwargs,
     ):  
         
         project_name = f"Symmetry_{env_name}_e{num_expert_rollouts_pool}"
         run_name = f"{algo_name}_{actor_type}_{critic_type}_" + \
-                f"r{num_rotations}-mea_e{mea_expert_eps}_n{mea_normal_eps}-iso_r{num_aug_episode}-s{self.seed}_{self.group_prefix}"
+                f"r{num_rotations}-mea_e{mea_expert_eps}_n{mea_normal_eps}-iso_r{num_aug_episode}-s{self.seed}_{self.group_prefix}-{obs_type}"
 
         group = f"{algo_name}_{actor_type}_{critic_type}_" + \
                 f"r{num_rotations}_e{num_expert_rollouts_pool}"
