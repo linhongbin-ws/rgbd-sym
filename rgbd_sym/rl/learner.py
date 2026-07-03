@@ -644,8 +644,17 @@ class Learner:
                 )
 
                 # append tensors to temporary storage
+                # MEA fix (Issue A): for symmetry-augmented (replayed) episodes,
+                # store the transformed action label produced by generate_sym3
+                # (carried on obs['sym_action'], exposed via train_env.sym_action)
+                # instead of the stale query_expert action, so the augmented
+                # (obs, action) pair forms a coherent demonstration. Real episodes
+                # (sym_state==0) keep the query_expert action unchanged.
+                store_action = action
+                if self.train_env.sym_state:
+                    store_action = ptu.FloatTensor([self.train_env.sym_action])  # (1, A)
                 obs_list.append(obs)  # (1, dim)
-                act_list.append(action)  # (1, dim)
+                act_list.append(store_action)  # (1, dim)
                 rew_list.append(reward)  # (1, dim)
                 term_list.append(term)  # bool
                 next_obs_list.append(next_obs)  # (1, dim)
@@ -785,8 +794,13 @@ class Learner:
                         next_observation=ptu.get_numpy(next_obs.squeeze(dim=0)),
                     )
                 else:  # append tensors to temporary storage
+                    # MEA fix (Issue A): store the transformed action label for
+                    # augmented (sym_state==1) episodes instead of the policy action.
+                    store_action = action
+                    if self.train_env.sym_state:
+                        store_action = ptu.FloatTensor([self.train_env.sym_action])  # (1, A)
                     obs_list.append(obs)  # (1, dim)
-                    act_list.append(action)  # (1, dim)
+                    act_list.append(store_action)  # (1, dim)
                     rew_list.append(reward)  # (1, dim)
                     term_list.append(term)  # bool
                     next_obs_list.append(next_obs)  # (1, dim)

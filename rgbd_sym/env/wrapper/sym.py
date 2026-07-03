@@ -26,8 +26,9 @@ class Sym(BaseWrapper):
         self._eps_buffer = []
         self._is_sym = True
         self._step = 0
+        self._sym_action = np.zeros(5)
 
-        self._sym_trans_z_low = sym_trans_z_low 
+        self._sym_trans_z_low = sym_trans_z_low
         self._sym_trans_z_high = sym_trans_z_high 
 
         self._sym_trans_r_low = sym_trans_r_low 
@@ -51,6 +52,7 @@ class Sym(BaseWrapper):
             obs,reward, done, info, action = self._sym_eps[0][self._step]
             obs['sym_state'] = 1
             self._sym_state = obs['sym_state']
+            self._sym_action = obs['sym_action']
             return obs
         else:
             obs = self.env.reset()
@@ -61,6 +63,7 @@ class Sym(BaseWrapper):
             obs['sym_action'] = action
             obs['sym_state'] = 0
             self._sym_state = obs['sym_state']
+            self._sym_action = obs['sym_action']
             return obs
 
 
@@ -71,6 +74,7 @@ class Sym(BaseWrapper):
             obs,reward, done, info, action = self._sym_eps[0][self._step]
             obs['sym_state'] = 1
             self._sym_state = obs['sym_state']
+            self._sym_action = obs['sym_action']
             if done:
                 self._sym_eps = self._sym_eps[1:]
         else:
@@ -79,6 +83,7 @@ class Sym(BaseWrapper):
             obs['sym_action'] = action
             obs['sym_state'] = 0
             self._sym_state = obs['sym_state']
+            self._sym_action = obs['sym_action']
             if self._is_sym:
                 self._eps_buffer.append((cp(obs), cp(reward), cp(done), cp(info), cp(action)))
                 if done:
@@ -155,7 +160,11 @@ class Sym(BaseWrapper):
     @property
     def sym_state(self):
         return self._sym_state
-    
+
+    @property
+    def sym_action(self):
+        return self._sym_action
+
     def mea_rollouts(self, eps):
         self._sym_aug_new_eps = eps
     
