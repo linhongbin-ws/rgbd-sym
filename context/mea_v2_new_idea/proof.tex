@@ -1,0 +1,115 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage[margin=1in]{geometry}
+
+% Define Theorem Environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{assumption}{Assumption}
+\newtheorem{lemma}{Lemma}
+
+\title{Proofs for Theoretical Guarantees: \\ Belief-Conditioned Symmetries}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section*{Preliminaries and Assumptions}
+
+We formulate the Partially Observable Markov Decision Process (POMDP) as a fully observable Belief MDP with belief state space $\mathcal{B}$ and action space $\mathcal{A}$. Let $c_\theta: \mathcal{B} \rightarrow \mathcal{C}$ be the context extractor, and $\phi: \mathcal{C} \rightarrow G$ map the context to a group action. For a given belief state $b \in \mathcal{B}$, the inferred local gauge symmetry is denoted as $g_b = \phi(c_\theta(b)) \in G$.
+
+We assume the group action on the belief space is measure-preserving, meaning $d(g_b \cdot b') = db'$. Furthermore, we make the following core assumptions regarding the contextual equivariance of the environment dynamics:
+
+\begin{assumption}[Belief Reward Invariance]
+For any belief state $b \in \mathcal{B}$ and action $a \in \mathcal{A}$, the expected reward is invariant under the inferred local symmetry $g_b$:
+\begin{equation}
+    \bar{R}(b, a) = \bar{R}(g_b \cdot b, g_b \cdot a)
+\end{equation}
+\end{assumption}
+
+\begin{assumption}[Belief Transition Equivariance]
+The belief transition probability $P(b' \mid b, a)$ is equivariant under the inferred local symmetry $g_b$:
+\begin{equation}
+    P(b' \mid b, a) = P(g_b \cdot b' \mid g_b \cdot b, g_b \cdot a)
+\end{equation}
+\end{assumption}
+
+\section*{Proofs of Main Theorems}
+
+\begin{theorem}[Contextual Value Invariance]
+Under Assumptions 1 and 2, the optimal state-action value function $Q^*(b, a)$ and the optimal value function $V^*(b)$ are invariant under the inferred local gauge symmetry $g_b$:
+\begin{align}
+    Q^*(b, a) &= Q^*(g_b \cdot b, g_b \cdot a) \\
+    V^*(b) &= V^*(g_b \cdot b)
+\end{align}
+\end{theorem}
+
+\begin{proof}
+We prove this using mathematical induction on the value iteration steps via the Bellman Optimality Operator $\mathcal{T}$.
+
+\textbf{Base Case ($k=0$):} Initialize the Q-function as zero for all states and actions, i.e., $Q_0(b, a) = 0, \forall b \in \mathcal{B}, a \in \mathcal{A}$. Trivially, $Q_0(b, a) = Q_0(g_b \cdot b, g_b \cdot a) = 0$ holds.
+
+\textbf{Inductive Step ($k \rightarrow k+1$):} Assume that at iteration $k$, the Q-function satisfies local invariance: $Q_k(b, a) = Q_k(g \cdot b, g \cdot a)$ for any $g \in G$. The Bellman update for iteration $k+1$ is given by:
+\begin{equation}
+    Q_{k+1}(b, a) = \bar{R}(b, a) + \gamma \int_{\mathcal{B}} P(b' \mid b, a) \max_{a' \in \mathcal{A}} Q_k(b', a') \, db' \label{eq:bellman_k}
+\end{equation}
+
+Now, evaluate $Q_{k+1}$ at the transformed state and action $(g_b \cdot b, g_b \cdot a)$:
+\begin{equation*}
+    Q_{k+1}(g_b \cdot b, g_b \cdot a) = \bar{R}(g_b \cdot b, g_b \cdot a) + \gamma \int_{\mathcal{B}} P(b'' \mid g_b \cdot b, g_b \cdot a) \max_{a''} Q_k(b'', a'') \, db''
+\end{equation*}
+
+Applying Assumption 1, we have $\bar{R}(g_b \cdot b, g_b \cdot a) = \bar{R}(b, a)$. Next, we apply a change of variables in the integral. Let $b'' = g_b \cdot b'$. Since the group action is measure-preserving, $db'' = db'$. Substituting this into the integral yields:
+\begin{equation*}
+    Q_{k+1}(g_b \cdot b, g_b \cdot a) = \bar{R}(b, a) + \gamma \int_{\mathcal{B}} P(g_b \cdot b' \mid g_b \cdot b, g_b \cdot a) \max_{a''} Q_k(g_b \cdot b', a'') \, db'
+\end{equation*}
+
+By Assumption 2 (Transition Equivariance), $P(g_b \cdot b' \mid g_b \cdot b, g_b \cdot a) = P(b' \mid b, a)$. Since $g_b$ is invertible and the action space is assumed to be closed under the group action, finding the maximum over $a''$ is equivalent to finding the maximum over a transformed action $a' = g_b^{-1} \cdot a''$, which implies $a'' = g_b \cdot a'$. Therefore:
+\begin{equation*}
+    \max_{a''} Q_k(g_b \cdot b', a'') = \max_{a'} Q_k(g_b \cdot b', g_b \cdot a')
+\end{equation*}
+
+Using the inductive hypothesis, $Q_k(g_b \cdot b', g_b \cdot a') = Q_k(b', a')$. Substituting all these simplifications back gives:
+\begin{equation*}
+    Q_{k+1}(g_b \cdot b, g_b \cdot a) = \bar{R}(b, a) + \gamma \int_{\mathcal{B}} P(b' \mid b, a) \max_{a'} Q_k(b', a') \, db'
+\end{equation*}
+Comparing this with Equation \ref{eq:bellman_k}, we conclude that $Q_{k+1}(g_b \cdot b, g_b \cdot a) = Q_{k+1}(b, a)$.
+
+\textbf{Limit to Optimality:} As $k \rightarrow \infty$, by the Contraction Mapping Theorem, $Q_k \rightarrow Q^*$. Thus, the optimal Q-function inherits the invariance: $Q^*(b, a) = Q^*(g_b \cdot b, g_b \cdot a)$. Consequently, $V^*(b) = \max_a Q^*(b, a) = \max_a Q^*(g_b \cdot b, g_b \cdot a) = V^*(g_b \cdot b)$.
+\end{proof}
+
+
+\begin{theorem}[Contextually Equivariant Policy]
+Under Assumptions 1 and 2, the optimal deterministic policy $\pi^*$ is conditionally equivariant to the inferred local gauge symmetry $g_b$:
+\begin{equation}
+    \pi^*(g_b \cdot b) = g_b \cdot \pi^*(b)
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+By definition, the optimal policy $\pi^*$ greedily maximizes the optimal Q-function:
+\begin{equation*}
+    \pi^*(b) = \arg\max_{a \in \mathcal{A}} Q^*(b, a)
+\end{equation*}
+Evaluating the policy at the transformed belief state $g_b \cdot b$:
+\begin{equation*}
+    \pi^*(g_b \cdot b) = \arg\max_{\tilde{a} \in \mathcal{A}} Q^*(g_b \cdot b, \tilde{a})
+\end{equation*}
+Let $\tilde{a} = g_b \cdot a$. Since $g_b$ is a bijection on the action space, maximizing over $\tilde{a}$ is equivalent to maximizing over $a$:
+\begin{equation*}
+    \pi^*(g_b \cdot b) = \arg\max_{g_b \cdot a} Q^*(g_b \cdot b, g_b \cdot a)
+\end{equation*}
+By Theorem 1, we know $Q^*(g_b \cdot b, g_b \cdot a) = Q^*(b, a)$. Substituting this in gives:
+\begin{equation*}
+    \pi^*(g_b \cdot b) = \arg\max_{g_b \cdot a} Q^*(b, a)
+\end{equation*}
+Since $g_b$ acts as a linear transformation on the action space that is independent of the maximization objective $Q^*(b, a)$, we can extract it from the $\arg\max$ operator:
+\begin{equation*}
+    \pi^*(g_b \cdot b) = g_b \cdot \left( \arg\max_{a \in \mathcal{A}} Q^*(b, a) \right) = g_b \cdot \pi^*(b)
+\end{equation*}
+This completes the proof.
+\end{proof}
+
+\end{document}
