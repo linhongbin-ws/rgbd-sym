@@ -10,7 +10,11 @@ class DummyEnv(BaseEnv):
     def __init__(self,
                  task,
                  delta_transl= 1,
-                 delta_rot=  np.pi / 8,
+                 # MEA fix (Issue F): actions fed to DummyEnv are already in physical
+                 # units (yaw in radians), consistent with delta_transl=1 for
+                 # translation. The old np.pi/8 re-scaled an already-physical yaw,
+                 # under-rotating the re-rendered gripper cloud by a factor of pi/8.
+                 delta_rot=  1,
                  **args):
         self._task = task
         client = None

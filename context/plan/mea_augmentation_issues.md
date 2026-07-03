@@ -29,7 +29,7 @@ mea ≈ baseline **不是调参问题**,而是两个结构性缺陷叠加:
 | **C** | `--algo sac` 不用 `expert_masks`(无 BC/模仿损失) | 🟡 中 | CONFIRMED | 专家(含增强)只当普通 replay,缺“示范驱动”的放大通道 |
 | **D** | buffer 被 ~92% 增强近重复灌满、均匀采样、更新预算不变 | 🟡 中 | CONFIRMED | 相同梯度步数摊在被重复数据主导的 buffer 上,稀释真实 80 条 |
 | **E** | mea 旋转与等变网络 + seq_rot 旋转增强冗余 | 🟡 中→低 | PARTIAL | 最大自由度(旋转)已被免费提供,边际信息本就小 |
-| **F** | 变换质量(每步 ±1rad yaw 噪声、DummyEnv 无物理/欠旋转、O(n²) 重渲染) | ⚪ 低 | PARTIAL | 只影响那 ~2 帧,且因 A 动作被丢弃而基本无害 |
+| **F** | 变换质量(DummyEnv yaw 欠旋转 π/8 ✅已修;每步 ±1rad yaw 噪声待定;O(n²) 重渲染) | 🟡 中(A 修后升级) | 部分已修 | 重渲染观测的 gripper 转角与 yaw 标签不一致(已修);yaw 噪声/耦合语义待定 |
 
 已被 **驳倒(REFUTED)** 的猜想:`sym_end_step==0` 全等副本(block_pull 中夹爪从 z=0.2 复位,不会一开始就 <0.15);接缝处 reward 断裂(重建锚定在抓取位姿、按构造连续)。
 
@@ -118,13 +118,16 @@ mea ≈ baseline **不是调参问题**,而是两个结构性缺陷叠加:
 
 ---
 
-## F —— 变换质量问题(低优先级)
+## F —— 变换质量问题(A 修好后升级为一等重要)
 
-- 每步给 yaw 加独立 `uniform(-1,1)*sym_rot`,`sym_rot=1`(config 覆盖了 git `4a1a309` 调到 0.3 的默认)—— `rgbd_sym/tool/sym.py:604`,配置 `sym_rot_low/high=1`。
-- DummyEnv 只做刚性点云变换、无碰撞、yaw 欠旋转且只转夹爪云;O(n²) 重渲染每帧从不同真实点云重新种子 —— `rgbd_sym/env/embodied/dummy/env.py:37-64`, `rgbd_sym/tool/sym.py:571-583`。
-- 只影响那 ~2 帧,且因 A 动作被丢弃,实际影响很小。
+> A 修好后增强动作真进训练,F 从「基本无害」升级。其中一条已修:
 
-**修复(P3)**:`sym_rot` 调回 0.3、yaw 改为每 episode 一个偏移;DummyEnv 一致旋转所有点云并修正旋转尺度。
+- ✅ **已修复(2026-07-03):`DummyEnv` yaw 欠旋转 π/8 倍**。`DummyEnv.step` 收的是物理量动作(与 `delta_transl=1` 一致),但旋转用 `delta_rot=π/8` 又乘了一遍已是物理弧度的 `action[4]`,导致重渲染的 gripper 云只转 `yaw×π/8`。数值验证:物理 yaw=0.3 → 实际转 0.1178rad;改为 `delta_rot=1` 后正确转 −0.3rad,平移不受影响。—— `rgbd_sym/env/embodied/dummy/env.py`。
+  - (注:「只转夹爪云、物体云不转」对 `camera_center_xyz`「相机跟随平移、朝向固定」的视角是**正确**的,不是 bug;git `f8a4de8` 已修过 R 矩阵符号,本次不动符号。)
+- ⏳ **待定(设计选择,与 B 纠缠)**:`action_sym` 给 yaw 每步加独立 `uniform(-1,1)*sym_rot`(`sym_rot=1`,覆盖了 git `4a1a309` 的 0.3 默认),且 `sym_trans_rot` 只旋转平移方向、**不作用到 yaw 命令** —— `rgbd_sym/tool/sym.py:598-604`。这决定增强 yaw 是「一致的对称旋转」还是「逐步随机噪声」,属方法语义,需确认后再改。
+- O(n²) 重渲染每帧从不同真实点云重新种子 —— 低优先级。
+
+**修复(P3)**:DummyEnv `delta_rot` 尺度已修;剩余 `sym_rot`/yaw 语义(每-episode 偏移、`sym_trans_rot` 一致作用到 yaw)待确认增强语义后再改。
 
 ---
 
@@ -140,7 +143,7 @@ mea ≈ baseline **不是调参问题**,而是两个结构性缺陷叠加:
 - ~~**P0 修 A**~~:✅ **已完成**(2026-07-03)—— 见上方 A 节「✅ 已修复」。
 - **P1 修 B**:对称变换扩展到整条轨迹,或调大 `sym_end_z_thres`。
 - **P2**:`--algo sacfd` + 专家采样加权。
-- **P3**:`sym_rot=0.3` + yaw 改每-episode 偏移;DummyEnv 一致旋转所有点云。
+- **P3**:✅ DummyEnv `delta_rot` 尺度已修;剩余 `sym_rot`/yaw 语义(每-episode 偏移、`sym_trans_rot` 作用到 yaw)待确认增强语义。
 
 ---
 
