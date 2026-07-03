@@ -18,13 +18,13 @@ class PomdpEnv(BaseEnv):
                  task='block_pull',
                  ):
         if task == 'block_pull':
-            client = gym.make("BlockPull-Sym")
+            client = gym.make("BlockPull-Sym-v0")
         elif task == 'block_pick':
-            client = gym.make("BlockPick-Sym")
+            client = gym.make("BlockPick-Sym-v0")
         elif task == 'block_push':
-            client = gym.make("BlockPush-Sym")
+            client = gym.make("BlockPush-Sym-v0")
         elif task == 'drawer_open':
-            client = gym.make("DrawerOpen-Sym")
+            client = gym.make("DrawerOpen-Sym-v0")
         else:
             raise NotImplementedError
     

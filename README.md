@@ -28,10 +28,11 @@ git submodule update --init --recursive
 - Install torch
     ```sh
     conda install cudnn=8.2 cudatoolkit=11.3 -c anaconda -y
-    conda install pytorch==1.12.0 torchvision==0.13.0 torchaudio==0.12.0 pytorch
+    conda install pytorch==1.12.0 torchvision==0.13.0 torchaudio==0.12.0 -c pytorch -y
     ```
 - Install the dependency `equi-rl-for-pomdps` for RSAC and POMDP environment
     ```sh
+    python -m pip install wheel==0.38.4 setuptools==59.5.0 packaging==21.3
     pushd ext/equi-rl-for-pomdps && python -m pip install -r requirements.txt && popd
     pushd ext/equi-rl-for-pomdps/escnn/ && python -m pip install -r requirements.txt && python -m pip install -e . && popd
     pushd ext/equi-rl-for-pomdps/pomdp_robot_domains/ && python -m pip install -r requirements.txt && python -m pip install -e . && popd
