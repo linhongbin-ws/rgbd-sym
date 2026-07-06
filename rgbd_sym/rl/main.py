@@ -132,6 +132,11 @@ if "SLURM_JOB_ID" in os.environ:
 
 # set gpu
 set_gpu_mode(torch.cuda.is_available() and v["cuda"] >= 0, v["cuda"])
+_use_gpu = torch.cuda.is_available() and v["cuda"] >= 0
+print(f"[GPU] cuda_available={torch.cuda.is_available()} "
+      f"device_count={torch.cuda.device_count()} "
+      f"using_gpu={_use_gpu} cuda_id={v['cuda']} "
+      f"name={torch.cuda.get_device_name(v['cuda']) if _use_gpu else 'CPU'}")
 
 # logs
 if FLAGS.debug:
