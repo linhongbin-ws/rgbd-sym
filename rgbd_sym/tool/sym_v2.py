@@ -50,14 +50,25 @@ def rot2d(theta):
     return np.array([[c, -s], [s, c]])
 
 
-def se2_about(anchor_xy, theta):
-    """4x4 rigid transform: rotate by `theta` about the vertical axis through
-    (anchor_xy[0], anchor_xy[1]).  Point p_world -> T @ [p;1]."""
+def se2_about(anchor_xy, theta, reflect=False):
+    """4x4 transform about the vertical axis through (anchor_xy): rotate by
+    `theta`, then (if reflect) mirror across the x-axis through the anchor.
+
+    Reflection is the O(2)\\SO(2) piece the C4-equivariant network (flip_symmetry
+    =false) structurally LACKS, yet block_pull's relational reward is mirror-
+    invariant -> a valid, non-redundant augmentation. See design_mea_v2.md.
+    """
     ax, ay = float(anchor_xy[0]), float(anchor_xy[1])
     T_to = getT([-ax, -ay, 0.0], [0, 0, 0], rot_type="euler")
     R = getT([0.0, 0.0, 0.0], [0, 0, theta], rot_type="euler", euler_Degrees=False)
     T_from = getT([ax, ay, 0.0], [0, 0, 0], rot_type="euler")
-    return TxT([T_from, R, T_to])
+    Ts = [T_from]
+    if reflect:
+        F = np.eye(4)
+        F[0, 0] = -1.0                      # mirror x (about the anchor, since centered)
+        Ts.append(F)
+    Ts += [R, T_to]
+    return TxT(Ts)
 
 
 def transform_pc(pc, T):
@@ -68,15 +79,20 @@ def transform_pc(pc, T):
     return np.matmul(P, np.transpose(T))[:, :3]
 
 
-def transform_action_se2(a, theta, action_sign=1.0):
-    """Rotate the translational delta (a[1], a[2]) by R_z(action_sign*theta).
+def transform_action_se2(a, theta, action_sign=1.0, reflect=False):
+    """Transform the action under a scene rotation by `theta` and optional x-mirror.
 
-    dz (a[3]), dyaw (a[4]), gripper (a[0]) are unchanged under a pure z-rotation
-    of the scene (dyaw is a relative delta; the absolute-yaw offset is handled on
-    the point cloud, not the action label). See module caveats re: action_sign.
+    Validated on a real rollout: action[1]->world x, action[2]->world y is the
+    IDENTITY map (phi=I, det=+1) up to a positive scale, so action_sign=+1 and the
+    world rotation applies directly to (a[1], a[2]). dz (a[3]), gripper (a[0]) are
+    unchanged. Under reflection, a[1] flips and dyaw (a[4]) flips (handedness).
     """
     new_a = np.asarray(a, dtype=float).copy()
-    new_a[1:3] = rot2d(action_sign * theta) @ new_a[1:3]
+    xy = rot2d(action_sign * theta) @ new_a[1:3]
+    if reflect:
+        xy[0] = -xy[0]                      # mirror x (matches se2_about F[0,0]=-1)
+        new_a[4] = -new_a[4]                # yaw handedness flips under reflection
+    new_a[1:3] = xy
     return new_a
 
 
@@ -146,9 +162,11 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
                     approach_max_angle=None,
                     z_thres=0.15,
                     action_sign=1.0,
+                    reflect_prob=0.0,
                     context_channel=False,
                     theta_global=None,
                     theta_approach=None,
+                    reflect=None,
                     rng=None):
     """Generate ONE context-conditioned augmented episode.
 
@@ -173,6 +191,7 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
         approach_max_angle = max_angle
     theta_g = float(theta_global) if theta_global is not None else float(rng.uniform(-max_angle, max_angle))
     theta_a = float(theta_approach) if theta_approach is not None else float(rng.uniform(-approach_max_angle, approach_max_angle))
+    do_reflect = bool(reflect) if reflect is not None else bool(rng.uniform() < reflect_prob)
 
     T = len(origin_actions)
     k = segment_grasp_step(obs, z_thres=z_thres) if mode == "conditional" else None
@@ -181,14 +200,14 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
 
     if mode == "global":
         q = scene_centroid_xy(obs[0])
-        T_all = se2_about(q, theta_g)
+        T_all = se2_about(q, theta_g, reflect=do_reflect)
 
         def frame_tf(t):                      # every entity, every frame
             keys = obs[t].get("pc", {}).keys()
             return {kk: T_all for kk in keys}
 
-        def action_theta(t):
-            return theta_g
+        def action_tf(t):                     # (theta, reflect)
+            return theta_g, do_reflect
     else:
         # conditional: approach gripper-only about target; contact identity; pull global
         target_key = nearest_object_key(obs[k])
@@ -196,8 +215,8 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
         if p0 is None:
             p0 = scene_centroid_xy(obs[k])
         q = scene_centroid_xy(obs[k])
-        T_grip = se2_about(p0, theta_a)       # APPROACH: gripper only, about target
-        T_all = se2_about(q, theta_g)         # PULL: whole scene, about scene centroid
+        T_grip = se2_about(p0, theta_a)       # APPROACH: gripper only, about target (no reflect)
+        T_all = se2_about(q, theta_g, reflect=do_reflect)  # PULL: whole scene (reflect ok)
 
         def frame_tf(t):
             if t < k:                         # c1 APPROACH
@@ -207,12 +226,12 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
             keys = obs[t].get("pc", {}).keys()  # c3 PULL -> global
             return {kk: T_all for kk in keys}
 
-        def action_theta(t):
+        def action_tf(t):
             if t < k:
-                return theta_a
+                return theta_a, False
             if t == k:
-                return 0.0
-            return theta_g
+                return 0.0, False
+            return theta_g, do_reflect
 
     # ---- re-render each frame's occupancy from the transformed clouds ----
     rendered = []
@@ -232,7 +251,9 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
                 img[1, :, :] = c               # gauge -> network's layer1 scalar plane
 
     # ---- transform the actions consistently ----
-    new_sym_actions = [transform_action_se2(origin_actions[t], action_theta(t), action_sign)
-                       for t in range(T)]
+    new_sym_actions = []
+    for t in range(T):
+        th, rf = action_tf(t)
+        new_sym_actions.append(transform_action_se2(origin_actions[t], th, action_sign, reflect=rf))
 
     return new_sym_obs, new_sym_actions

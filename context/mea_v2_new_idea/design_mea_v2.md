@@ -141,7 +141,30 @@ new_idea 的样例是 **pick-and-place**(approach → grasp → place-to-**goal*
 - **grasp_obj 认定**:靠「离夹爪最近的 object」定 target=块0,随机 yaw 下需校验;可改用 env 已知的 `objects[0]`。
 - **代码尚未在真机轨迹上跑过**(本环境无法起 pybullet rollout 验证)——§5 的实现按 scaffold 交付,需你在 env 里用一条真实 episode 做 `generate_sym_v2` 单元测试(存一条 rollout 的 `obs/actions`,离线跑增强,可视化 occupancy + 断言动作变换)。
 
+---
+
+## 8. 验证发现(2026-07-08,真机一条 rollout,`bash/test_sym_v2.py`)
+
+抓了一条真实 `block_pull` expert episode(10 帧、成功拉动)离线跑 `generate_sym_v2`,三点关键发现,**修正了上面部分设计**:
+
+1. **动作约定其实很干净(已验证)**:`action[1]→世界x、action[2]→世界y` 是**恒等映射**(φ=I,det=+1,无轴交换/翻转),`dG≈action[1:3]`。→ **`mea_v2_action_sign = +1` 确认正确**;旋转/反射对动作 (a1,a2) 直接施加即可。
+
+2. **相机是 `camera_center_xyz`——夹爪恒在图像正中(gripper centroid≈(0,0))**。后果:
+   - **`global` 模式渲染正确**(整场景绕图心刚性旋转,肉眼确认)。
+   - **`conditional` 的「approach 绕 target 转夹爪」几乎是 no-op**:夹爪在中心,转它对占据图基本无改变;且被抓的 movable 块在抓取帧被夹爪**遮挡(0 点)**,`nearest_object_key` 会误选可见的另一块。→ **§2 的 c1 局部 gauge 在这个相机设定下失效**(它假设接近角写在图里,但夹爪居中相机把接近角吸收掉了)。
+   - 更关键:reward-invariant 的对称(绕夹爪旋转)**≈ C4 网络内建等变** → 强冗余 → **这是负结果的机理**。
+
+3. **网络是 C4(`flip_symmetry=false`),不是 D4 → 反射是网络结构上没有、而任务合法(关系型 reward 镜像不变)的对称** → **这才是真正非冗余的增强杠杆**(已实现,`mea_v2_reflect_prob`;渲染+动作变换均验证:镜像整场景 + `a[1]→-a[1], a[4]→-a[4]`)。
+
+### 修正后的优先级
+- **主推:`global` + `reflect`(连续旋转 + 50% 镜像)**。旋转填补 C4 的离散角空隙(弱),**反射补上 C4 缺的整个 O(2)\\SO(2) 陪集(强、非冗余)**。这是最可能把负结果翻正的一招,且严格 reward-invariant。
+- `conditional`(approach 局部 gauge)在 `camera_center_xyz` 下**降级**;若要救,需换成**扰动两块的相对构型**(改变 target 相对 gripper 的角向位置而另一块不同步),但这与关系型 reward 耦合、valid 性更难保证,列为后续研究,不作首选。
+- v2-context(c 进网络 / MoEE):视 `global+reflect` 结果再定。
+
+### 实验建议(更新)
+四臂改为:baseline / v1 / **v2 global+reflect** / v2 global(仅连续旋转,无反射)。第 3 vs 第 4 臂直接**隔离出反射的贡献**(核心假设);AUC 判定。
+
 ### 状态
-- 设计:**本文件**。
-- `sym_v2.py` + `DummyEnv.apply_transform` + 门控 hook:**scaffold**(见提交),`mode='global'` 优先跑通,`conditional` 为研究主体。
-- v2-context(c 进网络 / MoEE):**下一步**,视 §6 结果启动。
+- 设计 + 验证:**本文件**(§8 为真机验证结论)。
+- `sym_v2.py`(rotation + **reflection**)+ `DummyEnv.apply_transform` + 门控 hook + `bash/test_sym_v2.py`:**已实现、几何/动作/渲染均验证**。`action_sign=+1` 已定。
+- 待你决定:先跑 **v2 global+reflect vs global** 对照(隔离反射贡献),还是先补 c1 的相对构型版本。
