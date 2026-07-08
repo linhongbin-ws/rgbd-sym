@@ -2,6 +2,7 @@ from rgbd_sym.env.wrapper.base import BaseWrapper
 import numpy as np
 import gym
 from rgbd_sym.tool.sym import generate_sym3
+from rgbd_sym.tool.sym_v2 import generate_sym_v2
 from copy import deepcopy as cp
 
 class Sym(BaseWrapper):
@@ -18,6 +19,12 @@ class Sym(BaseWrapper):
                  sym_rot_low=0,
                  sym_rot_high=0.3,
                  sym_aug_new_eps=12,
+                 mea_version='v1',
+                 mea_v2_mode='global',
+                 mea_v2_max_angle=2 * np.pi,
+                 mea_v2_approach_max_angle=None,
+                 mea_v2_action_sign=1.0,
+                 mea_v2_context_channel=False,
                  **kwargs,
                  ):
         super().__init__(env)
@@ -27,6 +34,14 @@ class Sym(BaseWrapper):
         self._is_sym = True
         self._step = 0
         self._sym_action = np.zeros(5)
+
+        # mea_v2 (context-conditioned aug). 'v1' -> unchanged generate_sym3 path.
+        self._mea_version = mea_version
+        self._mea_v2_mode = mea_v2_mode
+        self._mea_v2_max_angle = mea_v2_max_angle
+        self._mea_v2_approach_max_angle = mea_v2_approach_max_angle
+        self._mea_v2_action_sign = mea_v2_action_sign
+        self._mea_v2_context_channel = mea_v2_context_channel
 
         self._sym_trans_z_low = sym_trans_z_low
         self._sym_trans_z_high = sym_trans_z_high 
@@ -105,16 +120,26 @@ class Sym(BaseWrapper):
         new_sym_obss = []
         new_sym_actionss = []
         for _ in range(self._sym_aug_new_eps):
-            sym_trans_z = np.random.uniform(self._sym_trans_z_low, self._sym_trans_z_high)
-            sym_trans_r = np.random.uniform(self._sym_trans_r_low, self._sym_trans_r_high)
-            sym_trans_rot = np.random.uniform(self._sym_trans_rot_low, self._sym_trans_rot_high * 2 * np.pi)
-            sym_rot = np.random.uniform(self._sym_rot_low, self._sym_rot_high)
-            new_sym_obs, new_sym_actions = generate_sym3(obss_origin,actions_origin,
-                                                        sym_trans_z=sym_trans_z, 
-                                                        sym_trans_r=sym_trans_r, 
-                                                        sym_trans_rot=sym_trans_rot, 
-                                                        sym_rot=sym_rot,
-                                                        dummy_env=self._dummy_env)
+            if self._mea_version == 'v2':
+                new_sym_obs, new_sym_actions = generate_sym_v2(
+                    obss_origin, actions_origin,
+                    dummy_env=self._dummy_env,
+                    mode=self._mea_v2_mode,
+                    max_angle=self._mea_v2_max_angle,
+                    approach_max_angle=self._mea_v2_approach_max_angle,
+                    action_sign=self._mea_v2_action_sign,
+                    context_channel=self._mea_v2_context_channel)
+            else:
+                sym_trans_z = np.random.uniform(self._sym_trans_z_low, self._sym_trans_z_high)
+                sym_trans_r = np.random.uniform(self._sym_trans_r_low, self._sym_trans_r_high)
+                sym_trans_rot = np.random.uniform(self._sym_trans_rot_low, self._sym_trans_rot_high * 2 * np.pi)
+                sym_rot = np.random.uniform(self._sym_rot_low, self._sym_rot_high)
+                new_sym_obs, new_sym_actions = generate_sym3(obss_origin,actions_origin,
+                                                            sym_trans_z=sym_trans_z,
+                                                            sym_trans_r=sym_trans_r,
+                                                            sym_trans_rot=sym_trans_rot,
+                                                            sym_rot=sym_rot,
+                                                            dummy_env=self._dummy_env)
             new_sym_obss.append(new_sym_obs)
             new_sym_actionss.append(new_sym_actions)
 

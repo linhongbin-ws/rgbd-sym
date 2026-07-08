@@ -70,7 +70,29 @@ class DummyEnv(BaseEnv):
     def set_current_points(self, points):
         self._points = cp(points)
 
-    
+    def apply_transform(self, transform_dict):
+        """mea_v2: apply an arbitrary per-entity rigid 4x4 transform to the
+        currently-loaded point clouds (world/camera frame), in place.
+
+        Unlike `step`, which only supports the action-driven (gripper yaw about
+        origin + object translation) model, this lets sym_v2 rotate a chosen
+        subset of entities about an arbitrary anchor (e.g. gripper-only about the
+        target object for the APPROACH gauge, or all entities about the scene
+        centroid for the global PULL gauge). Entities absent from
+        `transform_dict` (or mapped to None) are left unchanged.
+        """
+        new_points = {}
+        for k, _pc in self._points.items():
+            T = transform_dict.get(k) if transform_dict is not None else None
+            if T is None:
+                new_points[k] = cp(_pc)
+            else:
+                ones = np.ones((_pc.shape[0], 1))
+                P = np.concatenate((_pc, ones), axis=1)
+                new_points[k] = np.matmul(P, np.transpose(T))[:, :3]
+        self._points = new_points
+
+
     @property
     def seed(self):
         return self._seed

@@ -1,0 +1,99 @@
+seed: 73
+cuda: 0 # use_gpu
+env:
+  env_type: pomdp
+  env_name: block_pull
+
+  num_eval_tasks: 10 # num of eval episodes
+
+  # rgbd_sym (v1 params kept for fallback; unused when mea_version=v2)
+  sym_trans_z_low: 0.75
+  sym_trans_z_high: 1
+  sym_trans_r_low: 0.75
+  sym_trans_r_high: 1
+  sym_trans_rot_low: 0
+  sym_trans_rot_high: 1
+  sym_rot_low: 1
+  sym_rot_high: 1
+  obs_type: occup
+
+  # ---- mea_v2 (context-conditioned aug). See context/mea_v2_new_idea/design_mea_v2.md ----
+  mea_version: v2                 # 'v1' -> old generate_sym3; 'v2' -> generate_sym_v2
+  mea_v2_mode: global             # 'global' (safe baseline) | 'conditional' (research arm)
+  mea_v2_max_angle: 3.14159265    # PULL/global rotation sampled in [-max, max] rad
+  mea_v2_approach_max_angle: 3.14159265  # APPROACH gripper rotation range (conditional)
+  mea_v2_action_sign: 1.0         # VALIDATE vs a real rollout (see sym_v2 caveats)
+  mea_v2_context_channel: false   # true -> write phase gauge c into layer1 (needs net awareness)
+
+
+train:
+
+  mea_expert_eps: 12
+  mea_normal_eps: 0
+
+
+  # 100*50 = 50k steps
+  num_iters: 800 # number meta-training iterates
+  num_init_rollouts_pool: 20 # before training
+  num_expert_rollouts_pool: 80 # before training
+  num_rollouts_per_iter: 1
+
+  num_updates_per_iter: 1.0
+  # buffer params
+  buffer_size: 1e5
+  batch_size: 32 # to tune based on sampled_seq_len
+  sampled_seq_len: -1 # -1 is all, or positive integer
+  sample_weight_baseline: 0.0
+  buffer_type: seq_rot
+  num_aug_episode: 4
+
+eval:
+  log_interval: 5 # num of iters
+  save_interval: 40
+  log_tensorboard: false
+
+policy:
+  separate: True
+  actor_type: equi # [normal, equi]
+  critic_type: equi # [normal, equi]
+  algo_name: sac # [sac, td3]
+
+  num_rotations: 4 # group
+  flip_symmetry: false # using dihedral group or not
+
+  action_embedding_size: 16 # no action input
+  observ_embedding_size: 0 # use image encoder
+  image_encoder:
+    from_flattened: false
+  rnn_hidden_size: 128
+
+  dqn_layers: [128, 128]
+  policy_layers: [128, 128]
+  lr: 0.0003
+  gamma: 0.9
+  tau: 0.005
+
+  sac:
+    entropy_alpha: 0.01 # tend to be det policy...
+    automatic_entropy_tuning: true
+    alpha_lr: 0.001
+    init_alpha: 0.1
+
+  sacfd:
+    entropy_alpha: 0.01 # tend to be det policy...
+    automatic_entropy_tuning: true
+    alpha_lr: 0.001
+    init_alpha: 0.1
+
+  sac_drq:
+    entropy_alpha: 0.01 # tend to be det policy...
+    automatic_entropy_tuning: true
+    alpha_lr: 0.001
+    init_alpha: 0.1
+
+  td3:
+    ## since we normalize action space to [-1, 1]
+    ## the noise std is absolute value
+    exploration_noise: 0.1
+    target_noise: 0.2
+    target_noise_clip: 0.5
