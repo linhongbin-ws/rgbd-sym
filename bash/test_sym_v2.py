@@ -26,12 +26,17 @@ import argparse
 import numpy as np
 
 
-def infer_action_world_map(obs, actions, dpos=0.05):
-    """Fit the signed-permutation phi mapping action[1:3]*dpos -> gripper world-xy
-    displacement (from obs['gripper_pos']). Returns (rel_err, phi 2x2, det)."""
+def infer_action_world_map(obs, actions):
+    """Fit the signed-permutation phi (up to a free positive scale) mapping
+    action[1:3] -> gripper world-xy displacement (from obs['gripper_pos']).
+
+    Scale-invariant: expert actions may be physical-scale or normalized; a pure
+    z-rotation of the scene commutes with scale, so only the signed permutation
+    (hence det = the action_sign) matters. Returns (rel_err, phi 2x2, det, scale).
+    """
     G = np.array([np.asarray(o["gripper_pos"], float)[:2] for o in obs])
     dG = np.diff(G, axis=0)                                  # (T,2) world deltas
-    A = np.array([np.asarray(a, float)[1:3] for a in actions]) * dpos
+    A = np.array([np.asarray(a, float)[1:3] for a in actions])
     n = min(len(dG), len(A))
     dG, A = dG[:n], A[:n]
     best = None
@@ -41,10 +46,12 @@ def infer_action_world_map(obs, actions, dpos=0.05):
                 P = np.zeros((2, 2))
                 P[0, perm[0]] = s0
                 P[1, perm[1]] = s1
-                pred = (P @ A.T).T
-                err = np.linalg.norm(pred - dG) / (np.linalg.norm(dG) + 1e-9)
+                PA = (P @ A.T).T
+                denom = float((PA * PA).sum())
+                s = float((PA * dG).sum() / denom) if denom > 1e-12 else 0.0
+                err = np.linalg.norm(s * PA - dG) / (np.linalg.norm(dG) + 1e-9)
                 if best is None or err < best[0]:
-                    best = (err, P, float(round(np.linalg.det(P))))
+                    best = (err, P, float(round(np.linalg.det(P))), s)
     return best
 
 
@@ -69,10 +76,10 @@ def main():
 
     # (1) action <-> world convention -> recommended action_sign
     if all("gripper_pos" in o for o in obs):
-        err, phi, det = infer_action_world_map(obs, actions)
+        err, phi, det, scale = infer_action_world_map(obs, actions)
         print("\n=== action<->world-xy map (from gripper_pos vs action[1:3]) ===")
         print(f"  phi =\n{phi}")
-        print(f"  fit rel_err = {err:.3f}  (small = clean convention)")
+        print(f"  fit rel_err = {err:.3f}  scale(action->world) = {scale:.3f}  (rel_err small = clean)")
         print(f"  det(phi) = {det:+.0f}  ->  RECOMMEND  mea_v2_action_sign = {det:+.0f}")
         if err > 0.3:
             print("  WARNING: high fit error; action frame may not be a pure signed permutation.")
