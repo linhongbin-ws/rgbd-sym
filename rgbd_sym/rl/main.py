@@ -46,6 +46,10 @@ flags.DEFINE_boolean("replay", False, "replay/train mode")
 flags.DEFINE_integer("mea_expert", None, "num experts episode used")
 flags.DEFINE_integer("mea_normal", None, "num experts episode used")
 
+flags.DEFINE_string("mea_version", None, "mea aug version [v1, v2]")
+flags.DEFINE_string("mea_v2_mode", None, "mea_v2 mode [global, conditional]")
+flags.DEFINE_float("mea_v2_reflect", None, "mea_v2 reflection probability [0, 1]")
+
 flags.FLAGS(sys.argv)
 yaml = YAML()
 v = yaml.load(open(FLAGS.cfg))
@@ -54,6 +58,14 @@ if FLAGS.mea_expert is not None:
     v["train"]["mea_expert_eps"] = FLAGS.mea_expert
 if FLAGS.mea_normal is not None:
     v["train"]["mea_normal_eps"] = FLAGS.mea_normal
+
+# mea_v2 overrides (env-section keys pass through make_env -> Sym wrapper)
+if FLAGS.mea_version is not None:
+    v["env"]["mea_version"] = FLAGS.mea_version
+if FLAGS.mea_v2_mode is not None:
+    v["env"]["mea_v2_mode"] = FLAGS.mea_v2_mode
+if FLAGS.mea_v2_reflect is not None:
+    v["env"]["mea_v2_reflect_prob"] = FLAGS.mea_v2_reflect
 
 # overwrite config params
 if FLAGS.env is not None:
