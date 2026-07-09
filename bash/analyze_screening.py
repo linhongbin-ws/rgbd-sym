@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
-"""Summarize the MEA-vs-baseline screening runs from wandb.
+"""Summarize the MEA screening / mea_v2 A-B runs from wandb.
 
-Pulls `metrics/success_rate_eval` vs env_steps for the screening runs
-(name contains --tag), classifies each as MEA / BASELINE from its run name
-(`mea_e<N>`), averages across seeds, prints a milestone table and saves a
-mean +/- std comparison plot.
+Pulls `metrics/success_rate_eval` vs env_steps for runs whose name contains
+--tag, classifies each into an arm by its prefix token, averages across seeds,
+prints a milestone table and saves a mean +/- std comparison plot.
 
-Run this AFTER the seeds finish (safe to run while training continues; it only
-hits the wandb API, no heavy compute):
+Arms (token -> label, checked in order):
+    v2gr_     -> V2+REFL  (v2 global rotation + reflection)   hypothesis arm
+    v2g_      -> V2ROT    (v2 global rotation only)           ablation
+    scr_mea   -> V1       (old generate_sym3 augmentation)
+    scr_base  -> BASE     (no augmentation)
+
+Run AFTER the seeds finish (wandb API only, no heavy compute):
 
     python bash/analyze_screening.py
     # or override:
     python bash/analyze_screening.py --project linhongbin/Symmetry_block_pull_e15 \
-        --tag scr_ --out screening_mea_vs_base.png
+        --tag d15_s --out screening_arms.png
 """
 import argparse
 import re
@@ -22,17 +26,29 @@ import bisect
 warnings.filterwarnings("ignore")
 import numpy as np
 
+# (token, label) checked in order -- v2gr_ MUST precede v2g_
+ARM_TOKENS = [
+    ("v2gr_", "V2+REFL"),
+    ("v2g_", "V2ROT"),
+    ("scr_mea", "V1"),
+    ("scr_base", "BASE"),
+]
+ARM_ORDER = ["V2+REFL", "V2ROT", "V1", "BASE"]
+COLORS = {"V2+REFL": "#16a34a", "V2ROT": "#2563eb", "V1": "#9333ea", "BASE": "#dc2626"}
+
 
 def classify(name):
     """Return (arm, seed) parsed from the wandb run name, e.g.
-    'r4-mea_e12_n0-iso_r4-s0_scr_mea_d15_s0-occup' -> ('MEA', 0)."""
-    m = re.search(r"mea_e(\d+)", name or "")
-    s = re.search(r"-s(\d+)_", name or "")
-    mea = int(m.group(1)) if m else None
+    'r4-mea_e12_n0-iso_r4-s0_v2gr_d15_s0-occup' -> ('V2+REFL', 0)."""
+    name = name or ""
+    arm = None
+    for tok, label in ARM_TOKENS:
+        if tok in name:
+            arm = label
+            break
+    s = re.search(r"-s(\d+)_", name)
     seed = int(s.group(1)) if s else None
-    if mea is None:
-        return None, seed
-    return ("MEA" if mea > 0 else "BASE"), seed
+    return arm, seed
 
 
 def step_interp(xs, ys, grid):
@@ -47,10 +63,10 @@ def step_interp(xs, ys, grid):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--project", default="linhongbin/Symmetry_block_pull_e15")
-    ap.add_argument("--tag", default="scr_", help="substring selecting screening runs by name")
+    ap.add_argument("--tag", default="d15_s", help="substring selecting runs by name")
     ap.add_argument("--xkey", default="env_steps")
     ap.add_argument("--ykey", default="metrics/success_rate_eval")
-    ap.add_argument("--out", default="screening_mea_vs_base.png")
+    ap.add_argument("--out", default="screening_arms.png")
     args = ap.parse_args()
 
     import wandb
@@ -60,23 +76,24 @@ def main():
         print(f"No runs whose name contains '{args.tag}' in {args.project}")
         return
 
-    arms = {"MEA": [], "BASE": []}
+    arms = {label: [] for label in ARM_ORDER}
     print("== runs ==")
     for r in runs:
         arm, seed = classify(r.name)
         if arm is None:
-            print(f"  ?    {r.name}: cannot classify, skipped"); continue
+            print(f"  ?        {r.name}: cannot classify, skipped"); continue
         try:
             h = r.history(keys=[args.xkey, args.ykey], samples=5000, pandas=False)
             pts = sorted((p[args.xkey], p[args.ykey]) for p in h
                          if p.get(args.xkey) is not None and p.get(args.ykey) is not None)
         except Exception as e:
-            print(f"  {arm:4s} seed={seed} {r.name}: history failed {e}"); continue
+            print(f"  {arm:8s} seed={seed} {r.name}: history failed {e}"); continue
         if not pts:
-            print(f"  {arm:4s} seed={seed} {r.name}: no eval points yet"); continue
+            print(f"  {arm:8s} seed={seed} {r.name}: no eval points yet"); continue
         xs = np.array([x for x, _ in pts]); ys = np.array([y for _, y in pts])
         arms[arm].append((seed, xs, ys))
-        print(f"  {arm:4s} seed={seed} points={len(pts)} final={ys[-1]:.2f} ({r.state})")
+        print(f"  {arm:8s} seed={seed} points={len(pts)} final={ys[-1]:.2f} "
+              f"AUC={ys.mean():.3f} ({r.state})")
 
     if not any(arms.values()):
         print("No usable eval curves."); return
@@ -87,35 +104,45 @@ def main():
     # milestone table
     mile = [g for g in [5000, 10000, 15000, 20000, 25000, 30000, 40000, 50000] if g <= allx.max()]
     print("\n== success_rate_eval (mean over seeds) ==")
-    print(f"{'env_steps':>12} | " + " | ".join(f"{m//1000}k" for m in mile))
+    print(f"{'env_steps':>14} | " + " | ".join(f"{m//1000:>4}k" for m in mile) + " |  AUC")
     curves = {}
-    for arm, lst in arms.items():
+    mile_means = {}
+    for arm in ARM_ORDER:
+        lst = arms[arm]
         if not lst:
             continue
         M = np.array([step_interp(xs, ys, grid) for _, xs, ys in lst], dtype=float)
         curves[arm] = (np.nanmean(M, axis=0), np.nanstd(M, axis=0), len(lst))
         Mm = np.array([step_interp(xs, ys, mile) for _, xs, ys in lst], dtype=float)
-        row = np.nanmean(Mm, axis=0)
-        print(f"{arm+f'(n={len(lst)})':>12} | " + " | ".join(f"{v:.2f}" for v in row))
+        mile_means[arm] = np.nanmean(Mm, axis=0)
+        auc = np.mean([ys.mean() for _, _, ys in lst])
+        print(f"{arm + f'(n={len(lst)})':>14} | "
+              + " | ".join(f"{v:.2f} " for v in mile_means[arm]) + f" | {auc:.3f}")
 
-    if "MEA" in curves and "BASE" in curves:
-        diff = np.nanmean(np.array([step_interp(xs, ys, mile) for _, xs, ys in arms["MEA"]]), axis=0) \
-             - np.nanmean(np.array([step_interp(xs, ys, mile) for _, xs, ys in arms["BASE"]]), axis=0)
-        print(f"{'MEA - BASE':>12} | " + " | ".join(f"{v:+.2f}" for v in diff))
+    # key contrasts
+    print()
+    for a, b, why in [("V2+REFL", "V2ROT", "reflection contribution"),
+                      ("V2+REFL", "BASE", "hypothesis arm vs baseline"),
+                      ("V2ROT", "BASE", "continuous rotation vs baseline")]:
+        if a in mile_means and b in mile_means:
+            d = mile_means[a] - mile_means[b]
+            print(f"{a + '-' + b:>14} | " + " | ".join(f"{v:+.2f}" for v in d) + f"   <- {why}")
 
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        plt.figure(figsize=(7, 4.5))
-        colors = {"MEA": "#2563eb", "BASE": "#dc2626"}
-        labels = {"MEA": "MEA (mea=12)", "BASE": "baseline (mea=0)"}
-        for arm, (mean, std, n) in curves.items():
-            plt.plot(grid, mean, color=colors[arm], lw=2, label=f"{labels[arm]}, n={n}")
+        plt.figure(figsize=(7.5, 4.5))
+        for arm in ARM_ORDER:
+            if arm not in curves:
+                continue
+            mean, std, n = curves[arm]
+            c = COLORS.get(arm, "#666666")
+            plt.plot(grid, mean, color=c, lw=2, label=f"{arm}, n={n}")
             plt.fill_between(grid, np.clip(mean - std, 0, 1), np.clip(mean + std, 0, 1),
-                             color=colors[arm], alpha=0.15)
+                             color=c, alpha=0.12)
         plt.xlabel("env steps"); plt.ylabel("eval success rate"); plt.ylim(-0.02, 1.05)
-        plt.title("MEA vs baseline (data-scarce screening, mean +/- std over seeds)")
+        plt.title("mea_v2 reflection A/B (data-scarce, mean +/- std over seeds)")
         plt.legend(); plt.grid(alpha=0.3); plt.tight_layout()
         plt.savefig(args.out, dpi=130)
         print(f"\nSaved plot -> {args.out}")
