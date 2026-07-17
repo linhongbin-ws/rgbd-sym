@@ -118,3 +118,47 @@ wandb 项目 `linhongbin/Symmetry_block_pull_e15`,run 前缀 `scr_mea_d15_s*` / 
 
 - 反射 A/B(equi 网):**完成,本节**。
 - normal 网络对照(baseline vs V2+REFL,`--actor_type normal --critic_type normal`):**下一个跑**,见 `bash/bench_normal.sh`。
+
+---
+
+## 7. normal 网络对照结果 + 机理诊断(2026-07-13)
+
+6 个 run(3 seed × {BASE-normal, V2+REFL-normal})已全部跑完。**待权威 AUC**(`python bash/analyze_screening.py --tag nrm_d15_s`),但本地 checkpoint(`agent_<iter>_perf<X>.pt`,即 10-episode eval 成功率)后段(iter 390–520)预览已很清楚:
+
+| seed | BASE-normal(后段均值) | V2+REFL-normal(后段均值) |
+|---|---|---|
+| s0 | ≈0.35 | ≈0.05 |
+| s1 | ≈0.55 | ≈0.29 |
+| s2 | ≈0.42 | ≈0.23 |
+| **均值** | **≈0.44** | **≈0.19** |
+
+**3/3 seed,BASE 全胜(≈ −0.25),比 equi 网上输得更惨(equi −0.05)。** → **「增强替代架构对称」假设被证伪**:即便网络没有内建对称,V2+REFL 依然大幅落后 baseline。且注意:合成 episode **不计入 env_steps**(`learner.py:695` 只对 `sym_state==0` 累加),所以同一横轴点上增强臂有 13× 数据(195 vs 15 条)还是输——记账没占便宜,负结果更硬。
+
+### 机理诊断(实证,`bash/diagnose_mea_v2.py`,CPU,抓 1 条真实 pull episode)
+
+| 测试 | 结果 | 含义 |
+|---|---|---|
+| **T1 恒等回环** θ=0 | mean\|Δ\|=**0**,diff 图纯黑 | 重渲染管线**无损/幂等**——**排除**「伪影注入」假说 |
+| T3 窗口裁剪 | frac_clipped ≈ 0 | 内容没转出 [-0.2,0.2]² 窗口 |
+| T4 占用面积 | ratio ≈ 1.00 | 刚体旋转面积守恒,无插值空洞 |
+| **T2 夹爪脱离中心** | **4→44 px**(centre=0) | ⚠️ **真正病因**(下述) |
+
+**根因 = 旋转中心选错(不是渲染,不是裁剪)。** 相机 `camera_center_xyz` **夹爪居中**:实测夹爪世界坐标**每帧恒为 ≈(0,0) = 图像正中**(100% 真实/eval 观测都如此)。但 `generate_sym_v2` 绕**场景质心**旋转,而质心随 pull 进程**漂离**夹爪(0.009→0.089 m),于是把夹爪推离中心 **4→44 px**(半宽 100 px),**在 pull 末段(t=8,9=reward 关键帧)最严重(44 px)**。这种「夹爪不在中心」的观测在真实 rollout / eval 里**从不出现** → 策略 92% 训练数据是**离流形(off-manifold)**的,且恰在最关键的阶段最脏。
+
+**对照证明中心是唯一变量**:改绕**夹爪**旋转 60°,夹爪偏移恒为 **0.2 px**(完美居中);绕场景质心则 4→44 px。图见 `scratchpad/diag_mea_v2.png`(60°/reflect 帧里夹爪跑到角落,红十字=图心落在空背景上)。
+
+### 关键推论:这其实指向一个**可修复的实现缺陷**,而非方法死局
+
+- 绕**夹爪/图心**旋转**整个场景**:① 夹爪留在中心(**保持 on-manifold**);② 刚体 → block 间距不变 → **关系型 reward 严格不变**;③ 非 90° 连续角 → C4 网**没有**的多样性。**三者同时满足** → 这才是本任务+相机下唯一合法且非冗余的旋转增强。
+- 当前代码用 `scene_centroid_xy(obs[t])` 当锚点 → 破坏 ①,是**实现 bug**,不是根因 B/E。之前 design 文档把「global SE(2) ≡ C4 内建对称」当成冗余,其实两者旋转中心不同(场景质心 vs 图心),真实后果是**离流形**而非干净冗余。
+
+### 下一步(便宜、判决性)
+
+**改锚点重跑 V2**:`se2_about` 锚点从 `scene_centroid_xy` → 夹爪 xy(≈原点),equi 网 3 seed A/B(V2gr-fixed vs BASE)。
+- 若 fixed 版**追平/超过 baseline** → 之前的负结果主要是**旋转中心 bug**造成的离流形损伤,方法本身可用(至少不再有害)。
+- 若 fixed 版**仍 ≈ baseline** → 对 C4 网,连续角+反射的增量确实填不动内建对称的冗余(回到根因 E),但这次是**干净的**冗余结论。
+
+- 反射 A/B(equi 网):完成,§6。
+- normal 网络对照:**完成,本节**(证伪「增强替代架构」)。
+- 机理:**旋转中心 bug → 夹爪离流形**(`diagnose_mea_v2.py` 实证)。
+- 锚点修复版 A/B:**TODO,推荐下一个跑**。
