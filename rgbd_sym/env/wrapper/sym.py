@@ -23,7 +23,8 @@ class Sym(BaseWrapper):
                  mea_v2_mode='global',
                  mea_v2_max_angle=2 * np.pi,
                  mea_v2_approach_max_angle=None,
-                 mea_v2_action_sign=1.0,
+                 mea_v2_action_sign=-1.0,
+                 mea_v2_anchor='origin',
                  mea_v2_reflect_prob=0.0,
                  mea_v2_context_channel=False,
                  **kwargs,
@@ -42,6 +43,7 @@ class Sym(BaseWrapper):
         self._mea_v2_max_angle = mea_v2_max_angle
         self._mea_v2_approach_max_angle = mea_v2_approach_max_angle
         self._mea_v2_action_sign = mea_v2_action_sign
+        self._mea_v2_anchor = mea_v2_anchor
         self._mea_v2_reflect_prob = mea_v2_reflect_prob
         self._mea_v2_context_channel = mea_v2_context_channel
 
@@ -130,6 +132,7 @@ class Sym(BaseWrapper):
                     max_angle=self._mea_v2_max_angle,
                     approach_max_angle=self._mea_v2_approach_max_angle,
                     action_sign=self._mea_v2_action_sign,
+                    anchor=self._mea_v2_anchor,
                     reflect_prob=self._mea_v2_reflect_prob,
                     context_channel=self._mea_v2_context_channel)
             else:

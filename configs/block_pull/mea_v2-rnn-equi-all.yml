@@ -22,7 +22,14 @@ env:
   mea_v2_mode: global             # 'global' (safe baseline) | 'conditional' (research arm)
   mea_v2_max_angle: 3.14159265    # PULL/global rotation sampled in [-max, max] rad
   mea_v2_approach_max_angle: 3.14159265  # APPROACH gripper rotation range (conditional)
-  mea_v2_action_sign: 1.0         # VALIDATED on a real rollout: phi=identity, +1 is correct
+  mea_v2_action_sign: -1.0        # pc/image frame = world with x/y SWAPPED (det -1), so a pc
+                                  # rotation +theta is a world rotation -theta. The old "+1
+                                  # validated" claim only checked action<->WORLD (gripper_pos)
+                                  # and missed the pc swap; all 2026-07 v2 runs trained with
+                                  # action labels off by 2*theta. See check_pc_action_frame.py.
+  mea_v2_anchor: origin           # rotate pc about the ORIGIN (= gripper = image center): the
+                                  # exact pc-frame image of any global world rotation. 'centroid'
+                                  # (legacy) displaced the gripper off-center by (I-FR)q0.
   mea_v2_reflect_prob: 0.5        # P(mirror aug). Reflection is the C4-net's MISSING symmetry
                                   # (flip_symmetry=false) and block_pull reward is mirror-invariant
                                   # -> the main non-redundant lever. See design_mea_v2.md.

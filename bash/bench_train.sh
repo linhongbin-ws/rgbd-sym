@@ -18,7 +18,15 @@ source bash/init.sh
 #
 # Paired seeds, A then B per seed so the earliest signal is a full pair.
 # Sequential (each buffer ~10GB; no parallel runs on this machine).
-# Analyze with: python bash/analyze_screening.py   (classifies all 4 arms)
+# Analyze with: python bash/analyze_screening.py   (classifies all arms)
+#
+# 2026-07-17 RERUN (v2f* prefixes): the original v2gr_/v2g_ runs trained on
+# WRONG action labels -- the pc/image frame is the world frame with x/y
+# swapped (det=-1), so augmented actions must rotate by -theta (not +theta)
+# and mirror must flip a[2] (not a[1]); also the rotation anchor must be the
+# pc origin (= gripper = image center), not the scene centroid. All fixed
+# (sym_v2.py, validated by bash/check_pc_action_frame.py). These reruns are
+# the first CLEAN measurement of v2 augmentation vs the C4-equivariant net.
 # =====================================================================
 
 SEEDS="0 1 2"     # paired seeds across both arms
@@ -30,12 +38,12 @@ for s in $SEEDS; do
   # ---- A: v2 global + reflect ----
   python ./rgbd_sym/rl/main.py --cfg configs/block_pull/mea_v2-rnn-equi-all.yml \
     --algo sac --seed $s --cuda 0 --num_expert_episodes $DEMOS --num_iters $ITERS \
-    --prefix v2gr_d${DEMOS}_s${s} --mea_expert $MEA --mea_normal 0 \
+    --prefix v2fgr_d${DEMOS}_s${s} --mea_expert $MEA --mea_normal 0 \
     --mea_v2_reflect 0.5
 
   # ---- B: v2 global rotation-only (ablation) ----
   python ./rgbd_sym/rl/main.py --cfg configs/block_pull/mea_v2-rnn-equi-all.yml \
     --algo sac --seed $s --cuda 0 --num_expert_episodes $DEMOS --num_iters $ITERS \
-    --prefix v2g_d${DEMOS}_s${s} --mea_expert $MEA --mea_normal 0 \
+    --prefix v2fg_d${DEMOS}_s${s} --mea_expert $MEA --mea_normal 0 \
     --mea_v2_reflect 0
 done

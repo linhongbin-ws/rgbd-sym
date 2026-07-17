@@ -123,6 +123,8 @@ wandb 项目 `linhongbin/Symmetry_block_pull_e15`,run 前缀 `scr_mea_d15_s*` / 
 
 ## 7. normal 网络对照结果 + 机理诊断(2026-07-13)
 
+> ⚠️ **2026-07-17:本节(及 §6)所有 v2 增强臂的解读已被 §7.b 作废**——增强 demo 的动作标签坐标系错位(错 2θ / 镜错轴)。BASE 与 V1 曲线仍有效。
+
 6 个 run(3 seed × {BASE-normal, V2+REFL-normal})已全部跑完。**待权威 AUC**(`python bash/analyze_screening.py --tag nrm_d15_s`),但本地 checkpoint(`agent_<iter>_perf<X>.pt`,即 10-episode eval 成功率)后段(iter 390–520)预览已很清楚:
 
 | seed | BASE-normal(后段均值) | V2+REFL-normal(后段均值) |
@@ -156,6 +158,51 @@ wandb 项目 `linhongbin/Symmetry_block_pull_e15`,run 前缀 `scr_mea_d15_s*` / 
 **诚实的不确定性**:CNN 平移等变可能部分吸收常数平移,所以「几十 px 常数偏移」对性能的实际伤害**未证实**;92% 合成 / 仅 15 个独立场景的**稀释**(根因 D)仍是并列嫌疑。锚点修复 A/B 依然是最便宜的判决实验,但对其收益的预期应下调。
 
 图:`context/plan/viz_mea_v2_trajs.png`(1 条真实轨迹 + 3 条增强克隆,含动作箭头/夹爪标记),`diag_mea_v2.png`(初版,注意其 T2 用了逐帧质心,量级偏大)。
+
+---
+
+## 7.b 真·根因(2026-07-17,**用户发现**):增强动作标签坐标系错位 → v2 全部实验臂作废
+
+**发现路径**:用户看 §7 的轨迹可视化,指出**绿色动作箭头与 ORIG 和增强轨迹的表观运动都不符**。追查确认这不止是画图问题,而是训练管线的真 bug。
+
+### 实测证据(`bash/check_pc_action_frame.py`)
+
+夹爪居中相机下,**静止物体在 pc 帧反向运动** `d_obj_pc = −s·M·a[1:3]`。用接近段(物体静止、可见)拟合:
+
+```
+M = [[0, 1], [1, 0]]   (x/y 对调),det(M) = −1,scale ≈ 0.78~0.92
+```
+
+即 **pc/图像系是世界系的 x/y 对调镜像副本**(俯视相机的标准现象)。`DummyEnv.step` 的 `(−a[2], −a[1])` 物体反向平移**早已编码**这一约定——v1 走的就是它。
+
+### 三个错(全部在 v2 专属代码里)
+
+| 项 | 应该(M-共轭) | 旧 v2 代码 | 后果 |
+|---|---|---|---|
+| 旋转 | pc 转 +θ ⇒ 动作转 **−θ**(det(M)=−1 翻手性) | 动作转 **+θ** | **每条增强 demo 动作标签错 2θ**,θ~U(−π,π) |
+| 镜像 | pc x-mirror ≡ 世界 y-mirror ⇒ 翻 **a[2]** | 翻 **a[1]** | 镜像 demo 动作错 180° 旋转 |
+| 锚点 | **pc 原点**(=夹爪=图心;任何全局世界旋转在 pc 系的像) | 场景质心 q0 | 夹爪偏心 (I−FR)q0(§7.a,次要) |
+
+**为何 §8 的「验证」没抓到**:`test_sym_v2.py` 只拟合 action↔世界系(gripper_pos),而增强旋转的是 pc 系;夹爪永远钉在 pc 原点,恰好是**唯一测不出 M 的实体**。
+
+**v1 为何免疫**:`generate_sym3` 先变换动作、再用 `DummyEnv.step`(内置正确 M)**回放动作生成观测帧** → obs/action 构造上自洽;v2 是几何旋转观测 + 另行变换动作,两边约定不一致才炸。
+
+### 对既有结果的重新解读
+
+- **§6 V2ROT/V2+REFL、§7 V2+REFL-normal 全部作废**:那些臂 92% 的专家数据带系统性错误动作标签,其负结果反映「错标签的危害」,不是「对称增强的价值」。
+- 「旋转增强主动有害(V2ROT 0/3)」从此有了最简单的解释:**标签错 2θ**。
+- **BASE(equi/normal)与 V1 曲线仍有效**;BASE-normal vs BASE-equi 的架构价值对比仍可用。
+- §7.a 的 anchor 偏移是并存的次要缺陷,同批修复。
+
+### 修复与验证(本 commit)
+
+- `transform_action_se2`:M-共轭(默认 `action_sign=−1`,mirror 翻 a[2]);`generate_sym_v2`/`Sym`/yml:`anchor=origin`。
+- `check_pc_action_frame.py` 断言通过:新变换 vs 要求 **误差 0**(200 随机抽样);旧变换最大偏差 0.099 ≈ 2|a|。
+- 修复后可视化 `context/plan/viz_mea_v2_trajs_fixed.png`:箭头随场景**共旋/共镜**,增强轨迹夹爪 **0.2 px 居中**(与真实观测一致);对比旧图 `viz_mea_v2_trajs.png` 可见旧箭头系统性错向。
+
+### 下一步
+
+**用修复后代码重跑 v2 A/B**(equi 网,3 seed × {V2FIX+REFL, V2FIX-ROT},新前缀 `v2fgr_`/`v2fg_`,`bash/bench_train.sh` 已更新;BASE/V1 复用)。分析:`python bash/analyze_screening.py`(已支持 6 臂 + label-fix 对照行)。这将是**第一次干净测量**「合法对称增强 vs C4 内建等变」;若 V2FIX 仍 ≈ BASE,冗余结论才真正成立;若 V2FIX+REFL > BASE,反射假设复活。
 
 ### 关键推论:这其实指向一个**可修复的实现缺陷**,而非方法死局
 

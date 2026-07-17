@@ -79,18 +79,28 @@ def transform_pc(pc, T):
     return np.matmul(P, np.transpose(T))[:, :3]
 
 
-def transform_action_se2(a, theta, action_sign=1.0, reflect=False):
-    """Transform the action under a scene rotation by `theta` and optional x-mirror.
+def transform_action_se2(a, theta, action_sign=-1.0, reflect=False):
+    """Transform the action so it stays consistent with the pc-frame transform
+    F * R(theta) that se2_about applies to the observation clouds.
 
-    Validated on a real rollout: action[1]->world x, action[2]->world y is the
-    IDENTITY map (phi=I, det=+1) up to a positive scale, so action_sign=+1 and the
-    world rotation applies directly to (a[1], a[2]). dz (a[3]), gripper (a[0]) are
-    unchanged. Under reflection, a[1] flips and dyaw (a[4]) flips (handedness).
+    Frame facts (measured on a real episode -- bash/check_pc_action_frame.py --
+    and independently encoded in DummyEnv.step's (-a2, -a1) counter-motion):
+      * action[1] -> world x, action[2] -> world y (phi = identity, WORLD frame);
+      * the pc/image frame is the world frame with x/y SWAPPED,
+        M = [[0,1],[1,0]], det(M) = -1 (a mirrored copy of the world).
+    Conjugating through M: a pc rotation by +theta is a WORLD rotation by -theta
+    -> action_sign = -1; the pc x-mirror (F[0,0]=-1) is a world y-mirror
+    -> flip a[2] (NOT a[1]) and flip dyaw (handedness). a[0]/a[3] unchanged.
+
+    NOTE: the (+1, flip-a[1]) convention used by the 2026-07 A/B runs was WRONG
+    (it was "validated" only against world-frame gripper_pos, which cannot see
+    M) -- every augmented demo carried action labels off by 2*theta, and the
+    mirrored demos flipped the wrong axis. See mea_screening_results.md sec. 7.
     """
     new_a = np.asarray(a, dtype=float).copy()
     xy = rot2d(action_sign * theta) @ new_a[1:3]
     if reflect:
-        xy[0] = -xy[0]                      # mirror x (matches se2_about F[0,0]=-1)
+        xy[1] = -xy[1]                      # pc x-mirror == world y-mirror -> flip a[2]
         new_a[4] = -new_a[4]                # yaw handedness flips under reflection
     new_a[1:3] = xy
     return new_a
@@ -161,7 +171,8 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
                     max_angle=2 * np.pi,
                     approach_max_angle=None,
                     z_thres=0.15,
-                    action_sign=1.0,
+                    action_sign=-1.0,
+                    anchor="origin",
                     reflect_prob=0.0,
                     context_channel=False,
                     theta_global=None,
@@ -179,6 +190,9 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
         max_angle:      sampling range for the PULL/global rotation (rad).
         approach_max_angle: sampling range for the APPROACH gripper rotation
                         (defaults to max_angle).
+        anchor:         'origin' (correct: pc origin = gripper = image center,
+                        the pc-frame image of every global world rotation) |
+                        'centroid' (legacy frame-0 scene centroid; off-manifold).
         context_channel: if True, write the phase gauge c into obs['image'][1]
                         (the network's constant scalar plane). Off by default so
                         the network is unchanged (v2-aug-only).
@@ -199,7 +213,13 @@ def generate_sym_v2(obs, origin_actions, dummy_env,
         mode = "global"  # can't segment safely -> safe fallback
 
     if mode == "global":
-        q = scene_centroid_xy(obs[0])
+        # anchor='origin' is the on-manifold choice: the camera is gripper-
+        # centered (gripper sits at pc (0,0) = image center every frame), and
+        # ANY global world rotation appears in the pc frame as a rotation about
+        # the ORIGIN -- so anchoring there keeps the gripper dead-center like
+        # every real observation. 'centroid' (legacy, used by the 2026-07 runs)
+        # adds a spurious constant shift (I-FR)q0 (~10-40 px) instead.
+        q = np.zeros(2) if anchor == "origin" else scene_centroid_xy(obs[0])
         T_all = se2_about(q, theta_g, reflect=do_reflect)
 
         def frame_tf(t):                      # every entity, every frame

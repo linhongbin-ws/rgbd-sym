@@ -80,12 +80,17 @@ def main():
         print("\n=== action<->world-xy map (from gripper_pos vs action[1:3]) ===")
         print(f"  phi =\n{phi}")
         print(f"  fit rel_err = {err:.3f}  scale(action->world) = {scale:.3f}  (rel_err small = clean)")
-        print(f"  det(phi) = {det:+.0f}  ->  RECOMMEND  mea_v2_action_sign = {det:+.0f}")
+        # The rotation is applied to the PC/IMAGE frame, which is the world frame
+        # with x/y swapped (M, det(M) = -1; measured by check_pc_action_frame.py).
+        # action_sign = det(M) * det(phi). Checking only gripper_pos (world) and
+        # recommending +det(phi) was the bug behind the 2026-07 A/B runs.
+        rec = -det
+        print(f"  det(phi) = {det:+.0f}, det(M_pc) = -1  ->  RECOMMEND  mea_v2_action_sign = {rec:+.0f}")
         if err > 0.3:
             print("  WARNING: high fit error; action frame may not be a pure signed permutation.")
     else:
         det = 1.0
-        print("\n(no gripper_pos in obs; cannot infer action_sign -- defaulting to +1)")
+        print("\n(no gripper_pos in obs; cannot infer action_sign -- defaulting to -1)")
 
     # (2) phase segmentation report
     k = segment_grasp_step(obs)
@@ -102,7 +107,7 @@ def main():
     for mode in ("global", "conditional"):
         n_obs, n_act = generate_sym_v2(
             obs, actions, dummy_env=dummy_env, mode=mode,
-            action_sign=float(det), theta_global=np.pi / 3, theta_approach=np.pi / 3)
+            action_sign=float(-det), theta_global=np.pi / 3, theta_approach=np.pi / 3)
         assert len(n_obs) == len(obs), f"{mode}: obs len {len(n_obs)} != {len(obs)}"
         assert len(n_act) == len(actions), f"{mode}: act len mismatch"
         # occupancy actually changed on a rotated frame?

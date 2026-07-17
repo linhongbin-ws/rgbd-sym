@@ -8,7 +8,12 @@ Overlays per cell:
   red +      image center (where the gripper sits in ALL real obs, since the
              depth camera is gripper-centered)
   white o    gripper centroid of THIS obs (real or augmented)
-  green ->   the (transformed) action's (dx, dy), exaggerated for visibility
+  green ->   the (transformed) action drawn IN THE PC/IMAGE FRAME: M @ a[1:3]
+             with M = [[0,1],[1,0]] (the measured world->pc axis swap, see
+             check_pc_action_frame.py). This is the gripper's heading relative
+             to the scene, so the BLOCKS stream OPPOSITE the arrow (the camera
+             rides on the gripper). In augmented rows a consistent arrow must
+             co-rotate/mirror with the scene.
 
 Also prints, per augmented row, the measured gripper off-center displacement
 and the closed-form prediction |(I - F R) q0| where q0 = frame-0 scene centroid
@@ -107,8 +112,9 @@ def main():
             if g is not None:
                 c, r = to_px(g)
                 axc.plot(c, r, "o", ms=7, mfc="none", mec="w", mew=1.3)  # gripper
-                if t < len(a):                                        # action arrow
-                    d = np.asarray(a[t], float)[1:3] / PC_RANGE * RES * K
+                if t < len(a):                # action arrow, in the pc frame
+                    S = np.array([[0.0, 1.0], [1.0, 0.0]])   # world->pc swap
+                    d = S @ np.asarray(a[t], float)[1:3] / PC_RANGE * RES * K
                     if np.hypot(*d) > 1:
                         axc.arrow(c, r, d[0], d[1], color="#22c55e",
                                   width=0.6, head_width=5, length_includes_head=True)
@@ -118,8 +124,8 @@ def main():
             if t == 0:
                 axc.set_ylabel(label, fontsize=9)
     fig.suptitle("real expert trajectory (top) vs mea_v2 global-mode augmented clones\n"
-                 "red + = image center   white o = gripper   green arrow = action (dx,dy)",
-                 fontsize=10)
+                 "red + = image center   white o = gripper   green arrow = action in pc "
+                 "frame (gripper heading; blocks stream opposite)", fontsize=10)
     plt.tight_layout(rect=[0, 0, 1, 0.93])
     plt.savefig(args.out, dpi=115)
     print(f"\nSaved -> {args.out}")

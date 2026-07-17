@@ -147,7 +147,8 @@ new_idea 的样例是 **pick-and-place**(approach → grasp → place-to-**goal*
 
 抓了一条真实 `block_pull` expert episode(10 帧、成功拉动)离线跑 `generate_sym_v2`,三点关键发现,**修正了上面部分设计**:
 
-1. **动作约定其实很干净(已验证)**:`action[1]→世界x、action[2]→世界y` 是**恒等映射**(φ=I,det=+1,无轴交换/翻转),`dG≈action[1:3]`。→ **`mea_v2_action_sign = +1` 确认正确**;旋转/反射对动作 (a1,a2) 直接施加即可。
+1. ~~**动作约定其实很干净(已验证)**:`action[1]→世界x、action[2]→世界y` 是**恒等映射**(φ=I,det=+1,无轴交换/翻转),`dG≈action[1:3]`。→ **`mea_v2_action_sign = +1` 确认正确**;旋转/反射对动作 (a1,a2) 直接施加即可。~~
+   **⚠️ 2026-07-17 作废:这条「验证」有漏洞,结论错误。** 它只验证了 action↔**世界**系(gripper_pos),但增强旋转的是 **pc/图像**系;实测(`bash/check_pc_action_frame.py`,静止物体在夹爪居中相机里的反向运动)pc 系 = 世界系 **x/y 对调**(M=[[0,1],[1,0]],det=−1,镜像副本;`DummyEnv.step` 的 `(−a2,−a1)` 早已编码此约定)。共轭后:pc 旋转 +θ ≡ 世界旋转 −θ → **`mea_v2_action_sign = −1` 才正确**;镜像应翻 **a[2]**(不是 a[1]);旋转锚点应为 **pc 原点(=夹爪=图心)**。旧代码让每条增强 demo 的动作标签错 2θ / 镜错轴 → **§8 之后所有 v2 实验臂作废**,详见 `mea_screening_results.md` §7.b。已修复并通过一致性断言。
 
 2. **相机是 `camera_center_xyz`——夹爪恒在图像正中(gripper centroid≈(0,0))**。后果:
    - **`global` 模式渲染正确**(整场景绕图心刚性旋转,肉眼确认)。
@@ -166,5 +167,5 @@ new_idea 的样例是 **pick-and-place**(approach → grasp → place-to-**goal*
 
 ### 状态
 - 设计 + 验证:**本文件**(§8 为真机验证结论)。
-- `sym_v2.py`(rotation + **reflection**)+ `DummyEnv.apply_transform` + 门控 hook + `bash/test_sym_v2.py`:**已实现、几何/动作/渲染均验证**。`action_sign=+1` 已定。
+- `sym_v2.py`(rotation + **reflection**)+ `DummyEnv.apply_transform` + 门控 hook + `bash/test_sym_v2.py`:已实现。~~`action_sign=+1` 已定~~ → **2026-07-17 更正:`action_sign=−1`、mirror 翻 a[2]、anchor=origin**(见 §8 第 1 条的作废说明与 `check_pc_action_frame.py`)。
 - 待你决定:先跑 **v2 global+reflect vs global** 对照(隔离反射贡献),还是先补 c1 的相对构型版本。

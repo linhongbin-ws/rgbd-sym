@@ -26,15 +26,20 @@ import bisect
 warnings.filterwarnings("ignore")
 import numpy as np
 
-# (token, label) checked in order -- v2gr_ MUST precede v2g_
+# (token, label) checked in order -- longer tokens MUST precede their prefixes.
+# v2f* = post frame-fix reruns (correct action labels + origin anchor);
+# v2g*/v2gr* = the 2026-07 runs whose action labels were WRONG (kept for record).
 ARM_TOKENS = [
+    ("v2fgr_", "V2FIX+REFL"),
+    ("v2fg_", "V2FIX-ROT"),
     ("v2gr_", "V2+REFL"),
     ("v2g_", "V2ROT"),
     ("scr_mea", "V1"),
     ("scr_base", "BASE"),
 ]
-ARM_ORDER = ["V2+REFL", "V2ROT", "V1", "BASE"]
-COLORS = {"V2+REFL": "#16a34a", "V2ROT": "#2563eb", "V1": "#9333ea", "BASE": "#dc2626"}
+ARM_ORDER = ["V2FIX+REFL", "V2FIX-ROT", "V2+REFL", "V2ROT", "V1", "BASE"]
+COLORS = {"V2FIX+REFL": "#0f766e", "V2FIX-ROT": "#ea580c",
+          "V2+REFL": "#16a34a", "V2ROT": "#2563eb", "V1": "#9333ea", "BASE": "#dc2626"}
 
 
 def classify(name):
@@ -121,7 +126,11 @@ def main():
 
     # key contrasts
     print()
-    for a, b, why in [("V2+REFL", "V2ROT", "reflection contribution"),
+    for a, b, why in [("V2FIX+REFL", "BASE", "FIXED hypothesis arm vs baseline"),
+                      ("V2FIX-ROT", "BASE", "FIXED rotation-only vs baseline"),
+                      ("V2FIX+REFL", "V2FIX-ROT", "FIXED reflection contribution"),
+                      ("V2FIX+REFL", "V2+REFL", "label-fix effect (same aug geometry)"),
+                      ("V2+REFL", "V2ROT", "reflection contribution"),
                       ("V2+REFL", "BASE", "hypothesis arm vs baseline"),
                       ("V2ROT", "BASE", "continuous rotation vs baseline")]:
         if a in mile_means and b in mile_means:
