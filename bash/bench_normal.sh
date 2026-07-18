@@ -30,22 +30,29 @@ source bash/init.sh
 #    prefixes below reuse those tokens so it still buckets A=BASE, B=V2+REFL)
 # =====================================================================
 
+# 2026-07-18 RERUN NOTE: the v2gr_nrm_ arm below trained on WRONG action
+# labels (pc-frame bug, see mea_screening_results.md sec 7.b) -- those runs
+# are void. The scr_base_nrm_ arm never enters the aug code path, so the
+# existing 3 BASE-normal runs stay valid and are REUSED (not rerun).
+# Only the fixed aug arm (v2fgr_nrm_) needs running: 3 runs ~= 1 day.
+# Analyze: python bash/analyze_screening.py --tag nrm_d15_s --out normal_ctrl.png
+
 SEEDS="0 1 2"
 DEMOS=15
 ITERS=500
 MEA=12
 
 for s in $SEEDS; do
-  # ---- A: baseline on normal (non-equivariant) net ----
-  python ./rgbd_sym/rl/main.py --cfg configs/block_pull/rnn-equi-all.yml \
-    --algo sac --seed $s --cuda 0 --num_expert_episodes $DEMOS --num_iters $ITERS \
-    --actor_type normal --critic_type normal \
-    --prefix scr_base_nrm_d${DEMOS}_s${s} --mea_expert 0 --mea_normal 0
+  # ---- A: baseline on normal net -- already done (scr_base_nrm_*), reuse ----
+  # python ./rgbd_sym/rl/main.py --cfg configs/block_pull/rnn-equi-all.yml \
+  #   --algo sac --seed $s --cuda 0 --num_expert_episodes $DEMOS --num_iters $ITERS \
+  #   --actor_type normal --critic_type normal \
+  #   --prefix scr_base_nrm_d${DEMOS}_s${s} --mea_expert 0 --mea_normal 0
 
-  # ---- B: V2+REFL on normal net ----
+  # ---- B: FIXED V2+REFL on normal net ----
   python ./rgbd_sym/rl/main.py --cfg configs/block_pull/mea_v2-rnn-equi-all.yml \
     --algo sac --seed $s --cuda 0 --num_expert_episodes $DEMOS --num_iters $ITERS \
     --actor_type normal --critic_type normal \
-    --prefix v2gr_nrm_d${DEMOS}_s${s} --mea_expert $MEA --mea_normal 0 \
+    --prefix v2fgr_nrm_d${DEMOS}_s${s} --mea_expert $MEA --mea_normal 0 \
     --mea_v2_reflect 0.5
 done
