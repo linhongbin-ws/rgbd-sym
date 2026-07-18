@@ -69,6 +69,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--project", default="linhongbin/Symmetry_block_pull_e15")
     ap.add_argument("--tag", default="d15_s", help="substring selecting runs by name")
+    ap.add_argument("--exclude", default="nrm_",
+                    help="skip runs containing this token, unless it is part of --tag "
+                         "(default keeps normal-net nrm_ runs out of the equi-net view)")
     ap.add_argument("--xkey", default="env_steps")
     ap.add_argument("--ykey", default="metrics/success_rate_eval")
     ap.add_argument("--out", default="screening_arms.png")
@@ -76,7 +79,11 @@ def main():
 
     import wandb
     api = wandb.Api(timeout=30)
-    runs = [r for r in api.runs(args.project) if args.tag in (r.name or "")]
+    drop = (lambda n: args.exclude and args.exclude in n and args.exclude not in args.tag)
+    runs = [r for r in api.runs(args.project)
+            if args.tag in (r.name or "") and not drop(r.name or "")]
+    if args.exclude and args.exclude not in args.tag:
+        print(f"(excluding runs containing '{args.exclude}'; pass --exclude '' to keep)")
     if not runs:
         print(f"No runs whose name contains '{args.tag}' in {args.project}")
         return
