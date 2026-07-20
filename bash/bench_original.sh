@@ -5,6 +5,17 @@ source bash/init_equipomdp_original.sh
 # readme protocol, in the isolated `equi-pomdp` env -- the reference
 # numbers mea_v2 must be compared against.
 #
+# !! 2026-07-20 COMPARABILITY WARNING (context/plan/original_baseline_comparability.md)
+# These numbers are NOT directly comparable to our fork's curves. The fork
+# feeds the net a point-cloud OCCUPANCY render (obs_type: occup, via the Occup
+# wrapper -> gym_regularizer.py:27-38), while the original feeds pybullet's
+# native depth HEIGHTMAP. Different observation modality => different task
+# difficulty. Depth encoding and gripper fill value differ too.
+# For "mea_v2 vs baseline" use the FORK's own BASE arm (mea_expert=0), which
+# the audit confirmed is behaviorally equivalent to the original learner path.
+# This script answers a different question: "does the unmodified upstream
+# reproduce its published numbers on this machine?"
+#
 # Runs the UNMODIFIED ext/equi-rl-for-pomdps-original tree (readme:
 # 80 expert demos, config-default 800 iters). Two arms, 3 seeds each:
 #   stage 1: Equi-RSAC (rnn-equi-all.yml)  <- the arch mea_v2 builds on;
