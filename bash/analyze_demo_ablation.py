@@ -1,17 +1,20 @@
 # -*- coding: utf-8 -*-
-"""Plot the equi-baseline demo-count scaling curve (bash/bench_demo_ablation.sh).
+"""Plot the demo-count scaling curve of the ORIGINAL equi-rl-for-pomdps
+baseline (bash/bench_demo_ablation.sh).
 
-wandb projects are split by demo count -- learner.py:365 builds
-`project_name = f"Symmetry_{env_name}_e{num_expert_rollouts_pool}"` -- so this
-walks one project per demo count instead of taking a single --project.
+The original repo's wandb conventions differ from our fork's, so this cannot
+reuse analyze_screening.py:
+    project = Symmetry_BlockPulling-Symm     (learner.py:355 -- ONE project
+              for every demo count; the fork splits per count instead)
+    group   = <prefix>_sac_equi_equi_r4_e<demos>   (learner.py:357-361)
+    name    = s<seed>                        (learner.py:373 -- the run NAME
+              carries only the seed)
+so runs are classified by GROUP (demo count parsed from its `_e<N>` tail),
+not by name.
 
-For each demo count it pulls `metrics/success_rate_eval` vs env_steps for every
-BASE run (scr_base_ token), reports per-seed AUC and final value, and plots
-mean +/- std vs demo count.
-
-    source bash/init.sh
+    source bash/init_equipomdp.sh
     python bash/analyze_demo_ablation.py
-    python bash/analyze_demo_ablation.py --demos 5 10 15 30 80 --arm scr_base_
+    python bash/analyze_demo_ablation.py --prefix abl_ --out demo_ablation.png
 """
 import argparse
 import re
@@ -23,11 +26,9 @@ import numpy as np
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--entity", default="linhongbin")
-    ap.add_argument("--env", default="block_pull")
-    ap.add_argument("--demos", type=int, nargs="+", default=[5, 10, 15, 30, 80])
-    ap.add_argument("--arm", default="scr_base_",
-                    help="run-name token selecting the arm (default: BASE)")
+    ap.add_argument("--project", default="linhongbin/Symmetry_BlockPulling-Symm")
+    ap.add_argument("--prefix", default="abl_",
+                    help="group-name token selecting this ablation's runs")
     ap.add_argument("--xkey", default="env_steps")
     ap.add_argument("--ykey", default="metrics/success_rate_eval")
     ap.add_argument("--out", default="demo_ablation.png")
@@ -35,47 +36,49 @@ def main():
 
     import wandb
     api = wandb.Api(timeout=30)
-
-    per_demo = {}   # demo -> list of (seed, auc, final, state)
-    for d in args.demos:
-        project = f"{args.entity}/Symmetry_{args.env}_e{d}"
-        try:
-            runs = list(api.runs(project))
-        except Exception as e:
-            print(f"d={d:<3} project {project}: not found / unreadable ({e})")
-            continue
-        # the prefix embeds the demo count, so d5 cannot leak into d15 etc.
-        want = f"{args.arm}d{d}_s"
-        rows = []
-        for r in runs:
-            name = r.name or ""
-            if want not in name:
-                continue
-            try:
-                h = r.history(keys=[args.xkey, args.ykey], samples=5000, pandas=False)
-                pts = sorted((p[args.xkey], p[args.ykey]) for p in h
-                             if p.get(args.xkey) is not None and p.get(args.ykey) is not None)
-            except Exception as e:
-                print(f"  d={d} {name}: history failed {e}")
-                continue
-            if not pts:
-                print(f"  d={d} {name}: no eval points yet")
-                continue
-            ys = np.array([y for _, y in pts])
-            m = re.search(r"-s(\d+)_", name)
-            rows.append((int(m.group(1)) if m else -1, float(ys.mean()),
-                         float(ys[-1]), r.state))
-        if rows:
-            per_demo[d] = sorted(rows)
-
-    if not per_demo:
-        print("No runs found. Has bench_demo_ablation.sh been launched?")
+    try:
+        runs = list(api.runs(args.project))
+    except Exception as e:
+        print(f"cannot read project {args.project}: {e}")
         return
 
-    print(f"\n== {args.arm} scaling over demo count ({args.ykey}) ==")
+    per_demo = {}   # demos -> list of (seed, auc, final, state)
+    skipped = 0
+    for r in runs:
+        group = r.group or ""
+        if args.prefix not in group:
+            skipped += 1
+            continue
+        m = re.search(r"_e(\d+)$", group)
+        if not m:
+            print(f"  ? group '{group}': no _e<demos> tail, skipped")
+            continue
+        demos = int(m.group(1))
+        s = re.match(r"s(\d+)$", r.name or "")
+        seed = int(s.group(1)) if s else -1
+        try:
+            h = r.history(keys=[args.xkey, args.ykey], samples=5000, pandas=False)
+            pts = sorted((p[args.xkey], p[args.ykey]) for p in h
+                         if p.get(args.xkey) is not None and p.get(args.ykey) is not None)
+        except Exception as e:
+            print(f"  d={demos} s{seed}: history failed {e}")
+            continue
+        if not pts:
+            print(f"  d={demos} s{seed}: no eval points yet")
+            continue
+        ys = np.array([y for _, y in pts])
+        per_demo.setdefault(demos, []).append(
+            (seed, float(ys.mean()), float(ys[-1]), r.state))
+
+    if not per_demo:
+        print(f"No runs whose group contains '{args.prefix}' in {args.project} "
+              f"({skipped} other runs present). Has bench_demo_ablation.sh been launched?")
+        return
+
+    print(f"\n== original Equi-RSAC baseline: demo-count scaling ({args.ykey}) ==")
     print(f"{'demos':>6} | {'n':>2} | {'AUC mean+/-std':>18} | {'final mean':>10} | per-seed AUC")
     for d in sorted(per_demo):
-        rows = per_demo[d]
+        rows = sorted(per_demo[d])
         aucs = np.array([a for _, a, _, _ in rows])
         fins = np.array([f for _, _, f, _ in rows])
         detail = ", ".join(f"s{s}={a:.3f}{'*' if st != 'finished' else ''}"
@@ -93,7 +96,7 @@ def main():
         std = [np.std([a for _, a, _, _ in per_demo[d]]) for d in ds]
         plt.figure(figsize=(6.5, 4.2))
         plt.errorbar(ds, mean, yerr=std, marker="o", capsize=4,
-                     color="#dc2626", lw=2, label=f"{args.arm} (AUC)")
+                     color="#dc2626", lw=2, label="Equi-RSAC (AUC)")
         for d in ds:
             for _, a, _, _ in per_demo[d]:
                 plt.plot(d, a, ".", color="#dc2626", alpha=0.35)
@@ -101,7 +104,8 @@ def main():
         plt.xticks(ds, [str(d) for d in ds])
         plt.xlabel("expert demos"); plt.ylabel("eval success rate (AUC)")
         plt.ylim(-0.02, 1.02)
-        plt.title("equi baseline: demo-count scaling (mean +/- std over seeds)")
+        plt.title("original equi-rl-for-pomdps: demo-count scaling\n"
+                  "(mean +/- std over seeds)", fontsize=10)
         plt.grid(alpha=0.3); plt.legend(); plt.tight_layout()
         plt.savefig(args.out, dpi=130)
         print(f"\nSaved plot -> {args.out}")

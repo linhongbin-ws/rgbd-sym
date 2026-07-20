@@ -1,65 +1,76 @@
-source bash/init.sh
+source bash/init_equipomdp.sh
 
 # =====================================================================
-# DEMO-COUNT ABLATION of the plain equi baseline (rnn-equi-all.yml only).
+# DEMO-COUNT ABLATION of the ORIGINAL equi-rl-for-pomdps baseline.
 #
-# Question: how does the C4-equivariant RSAC baseline scale with the number
-# of real expert demos? This maps the headroom curve -- where the baseline
-# is data-starved (aug has room to help) vs where it has saturated (aug can
-# only dilute). At DEMOS=15 the fixed mea_v2 aug LOST to this baseline
-# (ledger sec 8: BASE 0.388 vs V2FIX+REFL 0.244, 0/3 seeds); this ablation
-# says whether 15 was already near saturation.
+# Runs the UNMODIFIED ext/equi-rl-for-pomdps-original tree per its readme
+# ("Training (RSAC, Equi-RSAC, ...)"), Equi-RSAC arm only:
+#   python3 policies/main.py --cfg configs/block_pulling/rnn-equi-all.yml \
+#       --algo sac --seed S --cuda 0 --num_expert_episodes N
 #
-# ONE arm only: BASE (mea_expert=0, mea_normal=0), cfg rnn-equi-all.yml.
-# ITERS=500 for every point -- internally consistent, and matches the
-# existing d15 screening runs, which supply the 15-demo point for free.
+# Question: how does the published C4-equivariant RSAC baseline scale with
+# the number of real expert demos? That maps the headroom curve -- where the
+# baseline is data-starved (augmentation has room to help) vs where it has
+# saturated (augmentation can only dilute).
 #
-# STAGED, low end first (that is where the aug hypothesis lives):
-#   stage 1: DEMOS = 5, 10   (+ existing 15)  -> 6 runs
-#   stage 2: DEMOS = 30, 80  (80 = readme protocol demo count)  -> 6 runs
+# !! PYTHONPATH HAZARD -- do not remove the export below.
+#    init_equipomdp.sh puts the HACKED fork (ext/equi-rl-for-pomdps) on
+#    PYTHONPATH, and BOTH trees contain policies/, utils/, torchkit/ and
+#    buffers/ packages. `python policies/main.py` puts <repo>/policies at
+#    sys.path[0] -- NOT the repo root -- so `import utils.helpers` etc.
+#    would silently resolve to the HACKED fork. The readme's
+#    `export PYTHONPATH=${PWD}:$PYTHONPATH`, run from the original repo
+#    root, prepends the original tree so it wins. Keep it.
 #
-# !! wandb projects are SPLIT BY DEMO COUNT: learner.py:365 builds
-#    project_name = f"Symmetry_{env_name}_e{num_expert_rollouts_pool}",
-#    so these land in Symmetry_block_pull_e5 / _e10 / _e30 / _e80, NOT in
-#    the existing Symmetry_block_pull_e15. Analyze across all of them with:
-#      python bash/analyze_demo_ablation.py
+# !! Do NOT compare these numbers against our fork's curves. The fork feeds
+#    the net a point-cloud occupancy render, the original a native depth
+#    heightmap -- different observation modality. See
+#    context/plan/original_baseline_comparability.md.
 #
-# CONFOUNDS to keep in mind when reading the curve (both are upstream
-# behavior, present in the original repo too -- see
+# wandb (original conventions, DIFFERENT from the fork):
+#   project = Symmetry_BlockPulling-Symm      (learner.py:355, ONE project
+#             for all demo counts -- the fork instead splits per count)
+#   group   = <prefix>_sac_equi_equi_r4_e<demos>   (learner.py:357-361)
+#   name    = s<seed>                         (learner.py:373 -- the run
+#             NAME carries only the seed, so classification must use group)
+# Analyze:  python bash/analyze_demo_ablation.py
+#
+# CONFOUNDS when reading the curve (upstream behavior, documented in
 # context/plan/original_baseline_comparability.md sec 4):
 #  1. num_init_rollouts_pool stays 20 regardless of demo count, so the
-#     expert share of the buffer goes 5/25, 10/30, 15/35, 30/50, 80/100.
-#     Part of any low-demo degradation is the random-rollout majority.
-#  2. Warmup gradient updates scale with expert steps: learner.py:437-439
-#     does update(int(_n_env_steps_total * num_updates_per_iter)) right
-#     after expert collection, so DEMOS=5 gets ~1/3 the pretrain updates of
-#     DEMOS=15 and ~1/16 of DEMOS=80. The ablation therefore varies data
-#     quantity AND pretrain compute together -- it is a protocol-scaling
-#     curve, not a pure data-quantity curve.
-#     (Corollary worth noting for mea_v2: synthetic episodes do NOT
-#     increment _n_env_steps_total, so a MEA run gets the SAME warmup
-#     budget as its BASE twin despite holding 13x the expert data. The
-#     augmented data only ever enters via online-phase replay sampling.)
+#     expert share of the buffer goes 5/25, 10/30, 30/50, 80/100. Part of
+#     any low-demo degradation is the random-rollout majority.
+#  2. Warmup gradient updates scale with expert steps (learner.py:435-439:
+#     update(int(_n_env_steps_total * num_updates_per_iter)) right after
+#     expert collection), so DEMOS=5 gets ~1/16 the pretrain updates of
+#     DEMOS=80. This is a protocol-scaling curve, not a pure data-quantity
+#     curve.
 #
-# Sequential (each buffer ~10GB; no parallel runs on this machine).
-# ~8h/run => stage 1 ~2 days, stage 2 ~2 days.
+# Config default num_iters: 800 (readme protocol -- no --num_iters passed).
+# Sequential. ~12h/run => 4 points x 3 seeds = 12 runs ~= 6 days.
+# Stop after any point; the analyzer plots whatever has finished.
 # =====================================================================
 
+cd ext/equi-rl-for-pomdps-original
+export PYTHONPATH=${PWD}:$PYTHONPATH   # readme step "Before Training"; see hazard note
+
 SEEDS="0 1 2"
-ITERS=500
 
 run_point () {   # $1 = demo count
   for s in $SEEDS; do
-    python ./rgbd_sym/rl/main.py --cfg configs/block_pull/rnn-equi-all.yml \
-      --algo sac --seed $s --cuda 0 --num_expert_episodes $1 --num_iters $ITERS \
-      --prefix scr_base_d${1}_s${s} --mea_expert 0 --mea_normal 0
+    python3 policies/main.py --cfg configs/block_pulling/rnn-equi-all.yml \
+      --algo sac --seed $s --cuda 0 --num_expert_episodes $1 \
+      --prefix abl_d$1
   done
 }
 
-# ---- stage 1: low end ----
+# ---- low end: where the augmentation hypothesis lives ----
 run_point 5
 run_point 10
 
-# ---- stage 2: high end (uncomment after stage 1) ----
-# run_point 30
-# run_point 80
+# ---- high end: 80 = the readme protocol demo count ----
+run_point 30
+run_point 80
+
+# ---- optional: 15 = our fork screening's operating point ----
+# run_point 15
