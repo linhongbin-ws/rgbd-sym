@@ -25,7 +25,7 @@ pip install numpy==1.23.0
 # top-level requirements.txt minus mujoco-py; versions matched to rgbd-sym env
 pip install scikit-learn "future-fstrings==1.2.0" "gym==0.21.0" \
     "ruamel-yaml==0.16.12" "absl-py==0.11.0" matplotlib seaborn \
-    more_itertools tensorboardX PyYAML wandb
+    more_itertools tensorboardX PyYAML wandb psutil
 pip install Box2D || echo "WARN: Box2D failed -- optional, block tasks don't use it"
 
 # escnn runtime deps (lie_learn/torch-geometric intentionally omitted)
