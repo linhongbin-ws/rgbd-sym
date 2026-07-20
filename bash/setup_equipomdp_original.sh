@@ -28,14 +28,18 @@ pip install scikit-learn "future-fstrings==1.2.0" "gym==0.21.0" \
     more_itertools tensorboardX PyYAML wandb psutil
 pip install Box2D || echo "WARN: Box2D failed -- optional, block tasks don't use it"
 
-# escnn runtime deps (lie_learn/torch-geometric intentionally omitted)
-pip install joblib pymanopt autograd scipy
-pip install -e ./escnn --no-deps
+# submodules per readme step 5. NB: unlike the hacked fork's escnn, this
+# ORIGINAL escnn imports lie_learn at module load (group/groups/so3_utils.py),
+# so the full requirements are mandatory -- no --no-deps shortcut.
+pip install cython   # lie_learn builds from sdist and needs it
+pip install -r escnn/requirements.txt
+pip install -e ./escnn
+pip install -r pomdp_robot_domains/requirements.txt
+pip install -e ./pomdp_robot_domains
+pip install -e ./pomdp-domains
 
-# pybullet block domains
-pip install attrdict GitPython "pybullet==3.0.9" scikit-image tqdm
-pip install -e ./pomdp_robot_domains --no-deps
-pip install -e ./pomdp-domains --no-deps
+# dep resolution above may have bumped numpy; torch 1.12 needs numpy 1.x
+pip install numpy==1.23.0
 
 # smoke test: imports + env registration
 python - <<'EOF'
