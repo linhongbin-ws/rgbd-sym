@@ -70,7 +70,12 @@ def warp_occup_image(img, T_se2, pc_x_min=-0.2, pc_y_min=-0.2, pc_range=0.4,
     """Apply the pc-frame transform T_se2 to a rendered occup depth image.
 
     Rotated-in corner pixels are filled with `background` (default: the image's
-    own max, which IS the Occup background encoding max(z)+0.07, occup.py:109).
+    MEDIAN, which is the Occup background encoding). Background covers >90% of
+    the image so the median equals it exactly. Median (not max) is the correct
+    task-agnostic choice: block_pull encodes background as max(z)+0.07 (== the
+    image max), but block_push with goal present uses max(z)-0.02 (occup.py:105),
+    so max(img) would there be a FOREGROUND pixel and mis-fill the corners by
+    0.02. For block_pull median == max, so this leaves that arm bit-identical.
     order=1 bilinear -- exact for pure flips (integer grid), matches seq_rot's
     perturb() interpolation for rotations.
     """
@@ -78,7 +83,7 @@ def warp_occup_image(img, T_se2, pc_x_min=-0.2, pc_y_min=-0.2, pc_range=0.4,
     h, w = img.shape[:2]
     M = se2_image_matrix(T_se2, h, w, pc_x_min, pc_y_min, pc_range)
     Minv = np.linalg.inv(M)                  # affine_transform samples input at M^-1 @ out
-    cval = float(np.max(img)) if background is None else float(background)
+    cval = float(np.median(img)) if background is None else float(background)
     return affine_transform(img, Minv[:2, :2], offset=Minv[:2, 2],
                             order=1, mode="constant", cval=cval)
 
@@ -114,6 +119,15 @@ def generate_sym_v2_img(obs, origin_actions,
     rng = rng or np.random
     theta_g = float(theta_global) if theta_global is not None \
         else float(rng.uniform(-max_angle, max_angle))
+    # RNG draw-count parity with generate_sym_v2 GLOBAL mode: that path draws an
+    # APPROACH angle (sym_v2.py:207) unconditionally even though global mode
+    # never uses it. Mirror that throwaway draw here so a v2-vs-v2img A/B at the
+    # same seed sees the IDENTICAL (theta_g, do_reflect) sequence AND leaves the
+    # shared np.random stream (which also drives the seq_rot buffer) aligned --
+    # the only difference between the two arms is then the render path. Skipped
+    # when theta_global is injected (matches v2, which then also skips its draw).
+    if theta_global is None:
+        rng.uniform(-max_angle, max_angle)               # discarded, for parity
     do_reflect = bool(reflect) if reflect is not None \
         else bool(rng.uniform() < reflect_prob)
 

@@ -60,16 +60,27 @@ def compare_case(obs, actions, dummy_env, theta, reflect, tol):
     yy, xx = np.mgrid[0:h, 0:w]
     disc = (yy - (h - 1) / 2) ** 2 + (xx - (w - 1) / 2) ** 2 <= ((h - 1) / 2) ** 2
 
-    match_all, match_disc, mae_disc = [], [], []
+    match_all, match_disc, fg_iou, fg_match = [], [], [], []
     for t in range(len(obs)):
         A = np.asarray(obs_pc[t]["occup_image"], dtype=float)
         B = np.asarray(obs_im[t]["occup_image"], dtype=float)
         d = np.abs(A - B)
         match_all.append(np.mean(d <= tol))
         match_disc.append(np.mean(d[disc] <= tol))
-        mae_disc.append(np.mean(d[disc]))
+        # FOREGROUND-ONLY metrics: background (=median, >90% of the image) is
+        # identical in both paths and matches "for free", inflating match_all.
+        # Restrict to object pixels (depth below background) where the pc->pixel
+        # map actually matters -- a flipped axis or wrong sign tanks the IoU here
+        # even while match_all stays ~0.9. This is the metric that rules out a
+        # coordinate error the whole-image number could mask.
+        fpc = A < np.median(A) - tol
+        fim = B < np.median(B) - tol
+        union = fpc | fim
+        inter = fpc & fim
+        fg_iou.append(inter.sum() / union.sum() if union.sum() else 1.0)
+        fg_match.append(np.mean(d[union] <= tol) if union.any() else 1.0)
     return (float(np.mean(match_all)), float(np.mean(match_disc)),
-            float(np.mean(mae_disc)), obs_pc, obs_im)
+            float(np.mean(fg_iou)), float(np.mean(fg_match)), obs_pc, obs_im)
 
 
 def main():
@@ -108,15 +119,18 @@ def main():
         ("rot -2.1             ", -2.1, False),
         ("rot +pi/2 (C4 grid)  ", np.pi / 2, False),
     ]
-    print(f"\n{'case':<22} | match(all) | match(disc) | MAE(disc)")
+    print(f"\n{'case':<22} | match(all) | fg-IoU  | fg-match | axis-ok")
     keep = None
     for name, th, rf in cases:
-        m_all, m_disc, mae, obs_pc, obs_im = compare_case(
+        m_all, m_disc, iou, fgm, obs_pc, obs_im = compare_case(
             obs, actions, dummy_env, th, rf, ztol)
-        print(f"{name} | {m_all:>9.4f}  | {m_disc:>10.4f} | {mae:.5f}")
+        ok = "OK" if iou >= 0.75 else "!! CHECK"    # a flipped axis -> IoU ~0
+        print(f"{name} | {m_all:>9.4f}  | {iou:>6.3f} | {fgm:>7.3f}  | {ok}")
         if rf and th != 0.0:
             keep = (name, obs_pc, obs_im)
     print("actions: identical in every case (asserted).")
+    print("fg-IoU = object-pixel overlap pc-render vs img-warp (background "
+          "excluded); a wrong axis/sign would collapse it toward 0.")
 
     # ---- figure: orig | pc-v2 | img-v2 | diff on one frame ----
     try:
