@@ -46,7 +46,7 @@ flags.DEFINE_boolean("replay", False, "replay/train mode")
 flags.DEFINE_integer("mea_expert", None, "num experts episode used")
 flags.DEFINE_integer("mea_normal", None, "num experts episode used")
 
-flags.DEFINE_string("mea_version", None, "mea aug version [v1, v2]")
+flags.DEFINE_string("mea_version", None, "mea aug version [v1, v2, v2img]")
 flags.DEFINE_string("mea_v2_mode", None, "mea_v2 mode [global, conditional]")
 flags.DEFINE_float("mea_v2_reflect", None, "mea_v2 reflection probability [0, 1]")
 

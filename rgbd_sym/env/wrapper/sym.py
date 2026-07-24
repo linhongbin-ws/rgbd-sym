@@ -3,6 +3,7 @@ import numpy as np
 import gym
 from rgbd_sym.tool.sym import generate_sym3
 from rgbd_sym.tool.sym_v2 import generate_sym_v2
+from rgbd_sym.tool.sym_v2_img import generate_sym_v2_img
 from copy import deepcopy as cp
 
 class Sym(BaseWrapper):
@@ -37,8 +38,17 @@ class Sym(BaseWrapper):
         self._step = 0
         self._sym_action = np.zeros(5)
 
-        # mea_v2 (context-conditioned aug). 'v1' -> unchanged generate_sym3 path.
+        # mea aug version: 'v1' -> generate_sym3 (pc replay-rerender);
+        # 'v2' -> generate_sym_v2 (pc SE(2)+reflect, DummyEnv re-render);
+        # 'v2img' -> generate_sym_v2_img (fork-free: image-space warp, no pc).
         self._mea_version = mea_version
+        if mea_version == 'v2img':
+            if mea_v2_mode != 'global':
+                print(f"[Sym] WARNING: v2img supports GLOBAL transforms only "
+                      f"(got mode='{mea_v2_mode}') -- using global.")
+            if mea_v2_anchor != 'origin':
+                print(f"[Sym] WARNING: v2img anchors at the pc origin only "
+                      f"(got anchor='{mea_v2_anchor}') -- using origin.")
         self._mea_v2_mode = mea_v2_mode
         self._mea_v2_max_angle = mea_v2_max_angle
         self._mea_v2_approach_max_angle = mea_v2_approach_max_angle
@@ -124,7 +134,19 @@ class Sym(BaseWrapper):
         new_sym_obss = []
         new_sym_actionss = []
         for _ in range(self._sym_aug_new_eps):
-            if self._mea_version == 'v2':
+            if self._mea_version == 'v2img':
+                # fork-free path: warp the stored occup image directly; needs
+                # the Occup grid extents (self.env IS the Occup wrapper, api.py)
+                new_sym_obs, new_sym_actions = generate_sym_v2_img(
+                    obss_origin, actions_origin,
+                    max_angle=self._mea_v2_max_angle,
+                    action_sign=self._mea_v2_action_sign,
+                    reflect_prob=self._mea_v2_reflect_prob,
+                    pc_x_min=getattr(self.env, '_pc_x_min', -0.2),
+                    pc_y_min=getattr(self.env, '_pc_y_min', -0.2),
+                    pc_range=getattr(self.env, '_pc_range', 0.4),
+                    context_channel=self._mea_v2_context_channel)
+            elif self._mea_version == 'v2':
                 new_sym_obs, new_sym_actions = generate_sym_v2(
                     obss_origin, actions_origin,
                     dummy_env=self._dummy_env,
