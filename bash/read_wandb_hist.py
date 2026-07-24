@@ -57,22 +57,23 @@ def convergence(pts, frac=0.9):
     return pts[-1][0], plateau, thresh
 
 
-for wf in sys.argv[1:]:
-    label = os.path.basename(os.path.dirname(wf))
-    pts = read_history(wf)
-    if not pts:
-        print(f"\n{label}: NO history points"); continue
-    auc = sum(s for _, s in pts) / len(pts)
-    conv = convergence(pts)
-    print(f"\n=== {label} ===")
-    print(f"  eval points: {len(pts)}  last_env={pts[-1][0]:.0f}  "
-          f"final_sr={pts[-1][1]:.2f}  AUC={auc:.3f}")
-    if conv:
-        cenv, plateau, thresh = conv
-        print(f"  plateau(last5 mean)={plateau:.2f}  converge@>= {thresh:.2f}: "
-              f"env_step {cenv:.0f}  (= iter {cenv/50:.0f}, "
-              f"{100*cenv/pts[-1][0]:.0f}% of run)")
-    # downsampled curve
-    step = max(1, len(pts) // 12)
-    curve = " ".join(f"{e/1000:.0f}k:{s:.1f}" for e, s in pts[::step])
-    print(f"  curve: {curve}")
+if __name__ == "__main__":
+    for wf in sys.argv[1:]:
+        label = os.path.basename(os.path.dirname(wf))
+        pts = read_history(wf)
+        if not pts:
+            print(f"\n{label}: NO history points"); continue
+        auc = sum(s for _, s in pts) / len(pts)
+        conv = convergence(pts)
+        print(f"\n=== {label} ===")
+        print(f"  eval points: {len(pts)}  last_env={pts[-1][0]:.0f}  "
+              f"final_sr={pts[-1][1]:.2f}  AUC={auc:.3f}")
+        if conv:
+            cenv, plateau, thresh = conv
+            print(f"  plateau(last5 mean)={plateau:.2f}  converge@>= {thresh:.2f}: "
+                  f"env_step {cenv:.0f}  (= iter {cenv/50:.0f}, "
+                  f"{100*cenv/pts[-1][0]:.0f}% of run)")
+        # downsampled curve
+        step = max(1, len(pts) // 12)
+        curve = " ".join(f"{e/1000:.0f}k:{s:.1f}" for e, s in pts[::step])
+        print(f"  curve: {curve}")
