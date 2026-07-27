@@ -35,7 +35,7 @@
 
 ## 2. 能超过 baseline 的机制:分相位增强(接触帧退化到平凡群)
 
-- **做法**:保留现有连续 SE(2)-about-image-center 旋转,但把「整段一个 θ」改成**逐帧按相位门控**——自由空间帧用满 SO(2)(θ~U[0,2π)),**接触/抓取帧用恒等(θ=0,不加旋转副本)**。相位标签用可观测量(`gripper_close` / `_isHolding`(block_pick 的 layer1)/ 夹爪↔物体平面距 / planner stage),**不用**隐藏的 movable/locked latent。
+> **⚠️ 2026-07-27 作者(2508.11204 一作)更正,见 §9:本节把「取胜配方」写成了「分相位**刚性**旋转 + 接触帧扣旋转」,这是不完整/误导的。刚性旋转(整场景连夹爪一起转)只改变视角,gripper↔target 的 egocentric 相对位姿不变 ≡ 相机在轨迹中途转一次(弱)。论文真正的非冗余增益来自 approach 阶段**改变 gripper↔target 相对接近角 α**(收敛到同一抓取),需逐实体分割 + 深度重投影。本节的「扣接触帧」只是安全那一半。以 §9 为准。**
 - **为何非冗余**:C4 网络与 seq_rot 都**对每一帧**均匀施旋转(`seq_rot.py:68` "Same for the entire history")。本配方注入的新 bit 是「接触相位是对称正则、不该被旋转增强」——把 `num_aug_episode=4` 的预算从被遮挡/no-op 的接触帧,**重新分配**到真正有信息的自由空间帧。这正是 2508.11204 的取胜机制,也是逃离 extrinsic-equivariance error floor 的操作。
 - **物理/相机安全**:纯减法,不合成新帧 → 不可能穿桌、不改 reward;是「调度」而非「换锚点」→ 不受夹爪居中相机中和(它改的是**哪些帧**加群,不是**在哪转**)。
 - **实现**:`SeqRotBuffer._augment_and_add_episodes` 里把单个 θ 换成逐帧 θ 数组(接触帧置 0),`set_trans_zero=True` 不动。极廉价、可隔离 A/B。
@@ -98,3 +98,42 @@ pick / push / drawer 都有一个 **reward 无关的第二实体**(pick 的蓝�
 - **2110.10211** ✓ Learning Partial Equivariances (Partial G-CNNs) — https://arxiv.org/abs/2110.10211
 - **2201.11969** ✓ Approximately Equivariant Networks for Imperfectly Symmetric Dynamics — https://arxiv.org/abs/2201.11969
 - **2112.01388** ✓ Residual Pathway Priors(软等变约束)— https://arxiv.org/abs/2112.01388
+
+---
+
+## 9. 作者更正(2026-07-27):取胜杠杆是「相对接近角 α」,不是刚性旋转
+
+**来源**:用户 = arXiv:2508.11204 一作,当面更正。可视化 `bash/viz_approach_angle.py` →
+`context/plan/approach_angle_<task>.png`(4 任务)。
+
+### 更正内容
+
+§2、§3(row3)、§6 把取胜配方写成「分相位**刚性**旋转:自由空间帧整场景转 θ、接触帧扣旋转」。
+**这是弱增强,不是论文的机制。** 关键区分(egocentric 相对接近角 Δα = target 方位 − 夹爪朝向):
+
+| | 自由空间帧做什么 | gripper↔target 相对位姿 | 等价于 | 强度 |
+|---|---|---|---|---|
+| **刚性旋转**(我之前 row3 / `candidate_aug_*.png`) | 整场景(**含夹爪朝向**)一起转 θ | **不变**(Δα≡0) | 相机在轨迹中途转一次(实际很少) | **弱**,只提升相机旋转鲁棒性 |
+| **接近角增强**(论文 2508.11204) | **只转 target 相对夹爪的方位** α(t),夹爪朝向不动;α(t)→0 收敛到同一抓取 | **改变**(Δα=α(t)) | 同一目标、**全新接近轨迹** | **强**,非冗余真信息 |
+
+`approach_angle_block_pick.png` 底部面板是判据:刚性(蓝)与真实(绿)Δα **完全重合在 0** →
+证明刚性只是换视角;接近角(红)从 +55° 递减、接触帧收敛到 0 → 注入了新的相对接近角。
+
+### 这纠正了 design_mea_v2 §8 的「no-op 搁置」
+
+design_mea_v2 §8 把 conditional 的「approach 局部 gauge」当作 no-op 而搁置,转向 global+reflect。
+**真正原因是实现错了**:`sym_v2.py` conditional 分支 `frame_tf(t<k)={"gripper":T_grip}` 转的是
+**夹爪**(绕 target 锚点)——夹爪在图心,转它 → 夹爪离心 = **off-manifold**(真实观测夹爪永远居中),
+所以看似 no-op。**正确做法是反过来**:夹爪(朝向)不动、把 **non-gripper 实体绕图心(=夹爪)转 α(t)**,
+target 方位改变而夹爪居中 = **on-manifold**,egocentric 接近角真的变了。论文正是这样(分割 target+gripper、
+深度重投影),并拿到 +25/45/40%。
+
+### 落地(取代 §6 主实验)
+
+- **APPROACH-phase 相对接近角增强**:相位 t<k(自由空间)对 **non-gripper 实体**绕 pc 原点(=夹爪)
+  施 `se2_about(0, α(t))`,`α(t)=α₀·(k−t)/k` 递减到 0;夹爪点云不动;`Occup(DummyEnv)` 逐实体重渲。
+  接触/终止帧恒等(§2 的扣接触帧那一半仍保留,作为安全项)。
+- **动作标签**:approach 帧的 (dx,dy)/yaw 需按「target 相对夹爪转了 α(t)、夹爪不动」做**相对**共轭
+  (不是 §2 的全局共轭)——这是最需要在真机轨迹上核对的一环(对应 2508.11204 的分割+重投影细节)。
+- **候选优先级更新**:approach-angle 相对增强 = 首选(有作者论文正结果);分相位刚性旋转降级为「仅相机鲁棒性」;
+  反射维持次选(修正标签复核);干扰物去相关维持(但逐实体 pc 遮挡噪声大,见 `viz_candidate_aug.py` 发现)。
