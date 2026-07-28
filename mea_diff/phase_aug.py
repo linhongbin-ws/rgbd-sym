@@ -186,18 +186,35 @@ class MEAPhaseAug:
             return s
 
         # phase mode
-        alpha = self._approach_schedule  # closure
+        alpha = self._approach_schedule                       # closure
+        keyed = rot_z(self._keyed_angle())                    # ONE keyed element for the
+        #   whole ENGAGE phase (fix: was resampled per-frame -> object jittered between
+        #   orientations across frames, an inconsistent/invalid demo).
         for t in range(T):
             if phase[t] == APPROACH:
                 a = op[t, :2] if op is not None else np.zeros(2)      # object anchor
                 R = rot_z(alpha(t, k_grasp, T))
                 self._apply_frame(s, t, R, a, move_obj=False)        # gripper only
             else:                                                     # ENGAGE
-                R = rot_z(self._keyed_angle())
-                self._apply_frame(s, t, R, hole_t(t), move_obj=True)  # object+gripper
+                # FIX (feasibility): anchor the keyed rotation at the OBJECT'S OWN axis,
+                # not the hole. Rotating object+gripper about the hole sweeps the whole
+                # carry trajectory to large radius (180/270deg -> off-table / unreachable);
+                # rotating about the object's own center spins it IN PLACE to the keyed
+                # equivalent yaw (gripper follows the handle by a small offset) -> feasible,
+                # and at insertion (object center ~ hole center) the two coincide anyway.
+                a = op[t, :2] if op is not None else hole_t(t)
+                self._apply_frame(s, t, keyed, a, move_obj=True)      # object+gripper
         if do_reflect:
             self._reflect(s)
+        if "workspace_radius" in s and s["workspace_radius"]:
+            s["valid"] = self._in_workspace(s, float(s["workspace_radius"]))
         return s
+
+    @staticmethod
+    def _in_workspace(s, radius, center=None):
+        c = np.zeros(2) if center is None else np.asarray(center)
+        d = np.linalg.norm(s["eef_pos"][:, :2] - c, axis=1)
+        return bool(np.all(d <= radius))
 
     def _apply_frame(self, s, t, R, anchor, move_obj):
         # action (target pose) — the gripper's commanded pose
