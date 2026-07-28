@@ -17,3 +17,6 @@ wandb/
 logs/
 
 c
+
+# generated PNG images (viz outputs; regenerate via the mea_diff/bash viz scripts)
+*.png
