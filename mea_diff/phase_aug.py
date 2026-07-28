@@ -124,15 +124,24 @@ class MEAPhaseAug:
       unkeyed control arm, where MEA should add nothing over the SO(2)-equivariant net).
     """
 
-    def __init__(self, mode="phase", keyed_order=4, approach_max_angle=np.pi,
-                 approach_decay=True, reflect_prob=0.0, global_max_angle=np.pi, rng=None):
+    def __init__(self, mode="phase", keyed_order=4, approach_aug=False,
+                 approach_max_angle=np.pi, approach_decay=True, reflect_prob=0.0,
+                 global_max_angle=np.pi, workspace_radius=None, workspace_center=None,
+                 rng=None):
         assert mode in ("phase", "global", "off")
         self.mode = mode
         self.keyed_order = keyed_order
+        # approach_aug DEFAULT False after the 2026-07-28 falsification: the approach-angle
+        # arm is redundant with the C8 host AND dominated by the eye-in-hand+relative-action
+        # recipe (arXiv:2505.13431). Kept only as an opt-in ablation. The DEFAULT phase mode
+        # is now C4-ENGAGE ONLY (the sole surviving contribution).
+        self.approach_aug = bool(approach_aug)
         self.approach_max_angle = float(approach_max_angle)
         self.approach_decay = bool(approach_decay)
         self.reflect_prob = float(reflect_prob)
         self.global_max_angle = float(global_max_angle)
+        self.workspace_radius = workspace_radius       # if set: flag/drop infeasible EEF poses
+        self.workspace_center = workspace_center
         self.rng = rng or np.random
 
     # ---- keyed / approach angle sampling ----
@@ -192,27 +201,32 @@ class MEAPhaseAug:
         #   orientations across frames, an inconsistent/invalid demo).
         for t in range(T):
             if phase[t] == APPROACH:
+                if not self.approach_aug:
+                    continue                                          # DEMOTED: leave identity
                 a = op[t, :2] if op is not None else np.zeros(2)      # object anchor
                 R = rot_z(alpha(t, k_grasp, T))
                 self._apply_frame(s, t, R, a, move_obj=False)        # gripper only
-            else:                                                     # ENGAGE
-                # FIX (feasibility): anchor the keyed rotation at the OBJECT'S OWN axis,
-                # not the hole. Rotating object+gripper about the hole sweeps the whole
-                # carry trajectory to large radius (180/270deg -> off-table / unreachable);
-                # rotating about the object's own center spins it IN PLACE to the keyed
-                # equivalent yaw (gripper follows the handle by a small offset) -> feasible,
-                # and at insertion (object center ~ hole center) the two coincide anyway.
+            else:                                                     # ENGAGE (the contribution)
+                # anchor the keyed rotation at the OBJECT'S OWN axis, not the hole:
+                # rotating object+gripper about the hole sweeps the whole carry to large
+                # radius (180/270deg -> off-table / unreachable); about the object's own
+                # center it spins IN PLACE to the keyed equivalent yaw (gripper follows the
+                # handle by a small offset) -> feasible, and at insertion (object center ~
+                # hole center) the two coincide anyway.
                 a = op[t, :2] if op is not None else hole_t(t)
                 self._apply_frame(s, t, keyed, a, move_obj=True)      # object+gripper
         if do_reflect:
             self._reflect(s)
-        if "workspace_radius" in s and s["workspace_radius"]:
-            s["valid"] = self._in_workspace(s, float(s["workspace_radius"]))
+        if self.workspace_radius:
+            s["valid"] = self._in_workspace(s, float(self.workspace_radius), self.workspace_center)
         return s
 
     @staticmethod
     def _in_workspace(s, radius, center=None):
-        c = np.zeros(2) if center is None else np.asarray(center)
+        """Feasibility flag: every augmented EEF xy must stay within `radius` of `center`
+        (default world origin). The caller drops samples with valid==False (an augmented
+        pose the arm cannot reach — the on_peg positional success check would NOT catch it)."""
+        c = np.zeros(2) if center is None else np.asarray(center)[:2]
         d = np.linalg.norm(s["eef_pos"][:, :2] - c, axis=1)
         return bool(np.all(d <= radius))
 

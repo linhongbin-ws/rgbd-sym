@@ -7,7 +7,22 @@
 
 ---
 
-## 0. 先把贡献定位精确(否则打不过 EquiDiff)
+> **⚠️ 2026-07-28 对抗证伪后大改,以 [[falsification_and_pivot]] 为准。** 本文 §0/§1/§3 的"三臂(global/approach/engage)+ 方赢圆平"框架**已作废**:global 冗余(仅控制)、approach 冗余且被 EquiDiff 作者自己的 eye-in-hand+相对动作配方(2505.13431)碾压、「方赢圆平」控制**不诊断**。**唯一贡献 = 离散物体点群(C4)ENGAGE 增强。** 修订后的方法/实验矩阵见下方 §7bis + [[falsification_and_pivot]] §3。
+
+## 7bis. 修订实验矩阵(2026-07-28 pivot,取代 §3)
+
+- **贡献(唯一)**:向全局-C8 diffusion BC(EquiDiff)注入 out-of-support 的 **C4 等价插入朝向**——架构/canonicalization/相对帧都表达不了的 solution-set 对称。
+- **阻断门(出任何数字前)**:`mea_diff/test_action_consistency.py --hdf5 square_d0_abs.hdf5`——真数据上验动作共轭(合成版已过)。**FAIL 就别训。**
+- **Headline = Square 内部 ablation**(matched demo 预算 + matched 增强集大小):`aug-OFF` / `keyed-C4-ON` / `global-only`。**报 (keyed − global) 差 = 论文。**
+- **最干净的证伪臂**:同样三条跑在**非等变 DP** 宿主上。若 keyed 帮 DP 却拖累/持平 EquiDiff → destabilization 坐实、前提垮。**早跑。**
+- **扫 demo 数** 50/100/200(防高数据精度反降);**正面证据**:demo 插入 yaw 直方图(单峰)+ 未增强 EquiDiff 从不产生另 3 朝向。
+- **圆控制(可选、别当 headline)**:预测并测 `square_gain > round_gain`,自生成真正 SO(2) 抓取(环形销无手柄)的 Round 集,pre-register。
+- **stretch**:C4-engage 跑在 relative-frame/eye-in-hand EquiDiff 之上 → 定位成对架构互补。
+- **代码状态**:`mea_diff/phase_aug.py` 默认 = C4-engage-only(approach 降级为 `approach_aug=True` opt-in;engage 锚物体自身轴 + 可选 `workspace_radius` 过滤);`test_phase_aug.py` + `test_action_consistency.py` 离线全过。
+
+---
+
+## 0. ~~先把贡献定位精确~~(见上方 pivot;本节 approach/相对接近角部分已降级)
 
 EquiDiff 已经强加**全局 SO(2) 等变**(整场景一起转 → 等价)。所以 MEA 要涨,必须注入**全局等变拿不到**的对称/覆盖。**GIC 已证全局旋转穿接触不变**,所以不能靠"接触破缺"。真正非冗余的三块:
 
