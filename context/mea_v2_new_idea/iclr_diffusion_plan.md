@@ -67,13 +67,22 @@ EquiDiff 已经强加**全局 SO(2) 等变**(整场景一起转 → 等价)。�
 
 打败:EquiDiff;地板:DP-C/DP-T/ACT/BC-RNN;增强:RAD/DrQ/DP+Aug;对手论证:**PE-SAC(空间门控 ≠ 你的相位-keyed 群)**;rebuttal 锚点:**GIC(2308.14984)**(定位成 stabilizer reduction)、**EquiContact**(它重锚同一个群,你是群本身变)、**SEIL**(高斯 vs 结构化 keyed、BC vs diffusion)。
 
-## 5. 实现路径(待 `wcthuiypi` 核实后补实锚点)
+## 5. 实现路径(已核实 `wcthuiypi`)
 
-- EquiDiff 官方 repo → demo 数据加载处插入 dataset-transform(离线增强);
-- MimicGen 预生成 demo(robomimic hdf5)下载;确认 Round vs Square 都有 demo(或 Round 需在 robosuite 自生成);
-- 增强模态:优先**状态空间**(robosuite 暴露 per-object 位姿)变换物体+动作,规避图像重渲;
-- **CPU-only 最大风险**:diffusion 训练本身的算力(即便 demo 预生成)——需评估单任务单 seed 的可行 wall-clock;若过重,先用最小 demo 预算 + 单任务(Square)跑通 pipeline 再扩。
+**好消息:集成点很干净。**
+- **Host**:`github.com/pointW/equidiff`(包名 `equi_diffpo`),基于 Diffusion Policy + robomimic 格式;等变是**架构式**(escnn steerable,SO(2)/离散 Cn 如 C8),**pipeline 里没有任何数据增强**("sym" dataset 只是对称**归一化**不是几何增强)→ MEA 有干净的落点。
+- **增强钩子**:`equi_diffpo/dataset/robomimic_replay_image_dataset.py:197` 的 `__getitem__`(on-the-fly per-sample),或离线 `_convert_robomimic_to_replay`。
+- **最省的做法(CPU 友好、首选)**:**不重渲**——在 dataloader 里读 low-dim 物体位姿 + point-cloud/voxel 点,施相位对应的 SE(2)/SO(2)/C4(绕物体锚),同步变换**物体位姿 + 点 + 动作**;`_abs` 配置转绝对位姿动作、`_rel` 转 delta。纯解析、无 MuJoCo。
+- **相位索引 = 白送的**:**MimicGen 原生就把每条 demo 切成 object-centric subtask,每段带物体锚帧 + 相对 EE↔物体 SE(3)**。直接复用:pre-grasp subtask = 自由接近段(增强接近位姿),insertion subtask = 啮合段(增强 keyed 点群)。**不用自己切相位。**
+- **动作/模态细节**:MimicGen 动作 = 7-D OSC delta(dx,dy,dz + axis-angle + gripper);EquiDiff 转 10-D abs(pos3 + rot6d + gripper)。图像是**预渲染 RGB**不能像素重渲;几何增强要走 **voxel/point-cloud**(EquiDiff 支持)或 sim 重渲。
+- **命令**:下载 `square_d0`(1.62GB)→ `dataset_states_to_obs.py` + `robomimic_dataset_conversion.py` → `python train.py --config-name=train_equi_diffusion_unet_abs task_name=square_d0 n_demo=100`;基线宿主 DP 用 `--config-name=train_diffusion_unet`。把 MEA-aug 做成 config 开关,keyed-vs-unkeyed / MEA-vs-EquiDiff 都是一行 ablation。
 
-## 6. 立刻可做的第一步(建议)
+## 6. ⚠️ 两个硬障碍(核实后浮现,必须正视)
 
-**Pipeline 跑通优先于铺满**:EquiDiff + MimicGen **Square**,先复现 EquiDiff 基线一条 seed(确认 CPU 可训、拿到成功率曲线),再接 MEA-v2-aug 一条臂。**通了再上 Round 控制 + Threading + 多 seed。** 这样最快撞到"CPU 到底训不训得动 diffusion"这个真风险。
+**障碍 A —— 算力:diffusion 训练是 GPU-bound,CPU-only 训不动。** EquiDiff 默认 ~22GB GPU、batch 128;escnn 等变 U-Net 训练是唯一重步,**"CPU-only 无法在论文规模上训 EquiDiff"**。→ **我们选 diffusion 路线部分是为了 CPU 友好,但它只消掉了"在线 RL rollout 成本",diffusion 训练本身仍需 GPU。** demo 是静态可复用的,**只有训练那步需要 GPU**(可借/云)。显存可用 `dataloader.batch_size` / `policy.enc_n_hidden` 压。**这是当前第一号实际 blocker。**
+
+**障碍 B —— Round 控制组不存在现成数据。** MimicGen 只发 `square`(单方销,C4)和 `nut_assembly_d0`(双销,非受控)。**没有 round-only 预生成数据集**。robosuite 有 `NutAssemblyRound` env,但要**自己写 MimicGen datagen wrapper(镜像 Square 的 subtask 定义)+ ~10 条源 demo + 跑生成**(用 MuJoCo,渲染耗时)。→ 干净的方 vs 圆控制**需额外工程**;退路 `nut_assembly_d0`(双销)是不受控的弱代理。
+
+## 7. 立刻的第一步(取决于算力,见下方问题)
+
+**Pipeline 跑通优先于铺满**:EquiDiff + MimicGen **Square** 先复现 EquiDiff 基线一条 seed(拿到成功率曲线),再接 MEA-v2-aug(状态/点云解析增强,复用 MimicGen subtask 相位)。通了再上 Round 控制(需自生成)+ Threading + 多 seed。**但这一切以"训练那步有 GPU"为前提**(障碍 A)。
