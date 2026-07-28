@@ -16,29 +16,33 @@ def rot(pts, deg, c):
     return (R @ np.asarray(pts).T).T + np.asarray(c)
 
 
-def nut(ax, cx, cy, yaw, r=5.2, ec=DK, plate=BLUE, inserted=True):
-    """a square nut with a visible handle + gripper, rotated by yaw about (cx,cy)."""
+def _seg(ax, p0, p1, yaw, c, **kw):
+    a, b = rot([p0, p1], yaw, c)
+    ax.plot([a[0], b[0]], [a[1], b[1]], **kw)
+
+
+def nut(ax, cx, cy, yaw, r=4.2, ec=DK, plate=BLUE, inserted=True):
+    """a square nut with a short handle, grasped by a compact 2-finger gripper (fingers
+    straddle the handle) — one rigid unit rotated by yaw about (cx,cy)."""
     c = np.array([cx, cy])
-    # plate
+    # plate + square hole
     ax.add_patch(plt.Polygon(rot([[-r, -r], [r, -r], [r, r], [-r, r]], yaw, c), closed=True,
                              fc=plate, ec=ec, lw=1.6, zorder=2))
-    # square hole
     h = r * 0.42
     ax.add_patch(plt.Polygon(rot([[-h, -h], [h, -h], [h, h], [-h, h]], yaw, c), closed=True,
                              fc="white", ec=ec, lw=1.2, zorder=3))
-    if inserted:                                            # the peg, filling the hole = inserted
+    if inserted:                                            # peg filling the hole = inserted
         ax.add_patch(plt.Circle((cx, cy), r * 0.22, fc="#6b7280", ec=DK, lw=0.8, zorder=4))
-    # handle (sticks out +x in nut frame)
-    hb = r * 0.32
-    ax.add_patch(plt.Polygon(rot([[r, -hb], [r + r * 0.9, -hb], [r + r * 0.9, hb], [r, hb]], yaw, c),
+    # short handle bar sticking out +x in the nut frame
+    hb = r * 0.24; hl0, hl1 = r * 0.95, r + r * 0.55
+    ax.add_patch(plt.Polygon(rot([[hl0, -hb], [hl1, -hb], [hl1, hb], [hl0, hb]], yaw, c),
                              closed=True, fc=BROWN, ec="#7c2d12", lw=1, zorder=3))
-    # gripper clamping the handle tip
-    tip = rot([r + r * 0.9, 0], yaw, c)
-    perp = rot([0, 1], yaw, [0, 0])
+    # compact 2-finger gripper straddling the handle
+    gap = hb + r * 0.16
+    f0, f1 = r * 1.0, hl1 + r * 0.1
     for s in (-1, 1):
-        a = tip + perp * s * r * 0.5 - rot([r * 0.35, 0], yaw, [0, 0])
-        b = tip + perp * s * r * 0.5 + rot([r * 0.2, 0], yaw, [0, 0])
-        ax.plot([a[0], b[0]], [a[1], b[1]], color=DK, lw=3, zorder=5)
+        _seg(ax, [f0, s * gap], [f1, s * gap], yaw, c, color=DK, lw=3.5, zorder=5, solid_capstyle="round")
+    _seg(ax, [f1, -gap], [f1, gap], yaw, c, color=DK, lw=3.5, zorder=5, solid_capstyle="round")
 
 
 fig, ax = plt.subplots(figsize=(15, 6.6))
@@ -66,6 +70,14 @@ for i, (x, yaw) in enumerate(zip(xs, [0, 90, 180, 270])):
     ax.text(x, y + 12.5, f"{yaw}°", fontsize=9, ha="center", color=ec, weight="bold")
     ax.text(x, y - 9, labels[i], fontsize=9.5, ha="center", color=ec, weight="bold")
     ax.text(x, y - 13.5, "✓ inserted", fontsize=8, ha="center", color=GRN)
+
+# "+90°" rotation arrows between the MEA nuts (reads as a rotation, not a teleport)
+for i in [1, 2]:
+    xm = (xs[i] + xs[i + 1]) / 2
+    ax.add_patch(Arc((xm, y + 2), 9, 6, theta1=200, theta2=340, color=GRY, lw=1.4))
+    ax.annotate("", xy=(xm + 3.4, y + 1.2), xytext=(xm + 2.2, y - 0.6),
+                arrowprops=dict(arrowstyle="-|>", color=GRY, lw=1.2))
+    ax.text(xm, y - 3.2, "+90°", fontsize=7.5, ha="center", color=GRY)
 
 # bracket over the 3 MEA ones
 ax.plot([xs[1] - 9, xs[3] + 9], [y + 18.5, y + 18.5], color=ORN, lw=1.6)
