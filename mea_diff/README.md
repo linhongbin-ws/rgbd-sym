@@ -25,20 +25,19 @@ MEA is a **data augmentation** (no network change).
   (action-in-eef-frame invariant under aug; reflection mirrors by F). Synthetic smoke passes;
   run on real data before training: `python mea_diff/test_action_consistency.py --hdf5 square_d0_abs.hdf5`.
   **If it FAILS on real data, the rot6d/quat conjugation is mis-signed — do NOT train.**
-- `equidiff_hook.py` — adapter sketch: subclass `RobomimicReplayImageDataset`, apply the
-  aug in `__getitem__` (low-dim poses + 10-dim abs action). RGB obs can't be pose-augmented
-  → use low_dim / voxel / point_cloud, or re-render. Reuse MimicGen subtask boundaries as
-  the phase index (fallback: gripper-close / distance heuristic).
+- `equidiff_integration.py` — **how to integrate (corrected after reading the real repo)**:
+  the dataloader hook is WRONG for the image policy (pre-rendered RGB; 2-frame obs window vs
+  16-step action horizon; grasped object can't be re-oriented at load time). Use **PATH A =
+  offline MimicGen datagen** with a C4 rotation on the insertion subtask. Low-dim dataloader
+  is a scoped FALLBACK-B only.
+- `RUNBOOK.md` — the on-GPU recipe: setup, blocking gate, the three dataset variants
+  (baseline / keyed-C4 / global-rot), and the host×variant×demo×seed ablation matrix.
 - `viz_mea_diff_aug.py` → `context/plan/mea_diff_aug.png` (data-side change, real augmentor).
 - `viz_mea_diff_pipeline.py` → `context/plan/mea_diff_pipeline.png` (network + task + control).
 
-## Config toggle (in the EquiDiff task yaml)
-```
-dataset._target_: equidiff_hook.MEAAugImageDataset
-dataset.mea_mode: phase     # phase | global(redundant) | off(baseline)
-dataset.keyed_order: 4       # 4 = square(C4) ; 0 = round(SO(2) control)
-dataset.reflect_prob: 0.0
-```
+## Integration (PATH A — no EquiDiff code change; see equidiff_integration.py + RUNBOOK.md)
+The "arm" = which hdf5 you train on × which host. Produce `square_d0_keyedC4_abs` via MimicGen
+datagen, then `train.py --config-name=train_equi_diffusion_unet_abs task_name=square_d0 ...`.
 
 ## Status
 Augmentation math + tests DONE & passing offline. Not yet wired into a real EquiDiff
