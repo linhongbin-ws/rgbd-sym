@@ -20,14 +20,37 @@ python mea_diff/test_action_consistency.py --hdf5 .../square_d0_abs.hdf5 --demo 
 ```
 Verifies the rot6d/quat conjugation on REAL data. **FAIL → the aug math is mis-signed → do NOT train.**
 
-## 2. Produce the dataset variants (the "arms")
-| variant hdf5 | how to make it |
-|---|---|
-| `square_d0_abs` (BASELINE) | as downloaded/converted |
-| `square_d0_keyedC4_abs` (**the method**) | MimicGen datagen with a **C4 rotation added to the insertion-subtask object-frame target** (mimicgen task/SubtaskConfig); re-solve + re-render; convert to abs. Uses `phase_aug.rot_z/transform_*` for the action math. |
-| `square_d0_globalrot_abs` (CONTROL) | whole-scene SO(2) rotation of each demo (redundant w/ EquiDiff by design) — for the DP host mainly |
-Round control (optional, NOT headline): generate `round_*` the SAME way with a genuinely
-SO(2)-symmetric grasp (annular peg, centered grasp, no handle); predict `square_gain > round_gain`.
+## 2. Produce the dataset variants (the "arms")  — PATH A, verified against NVlabs/mimicgen
+The keyed-C4 hook is a ONE-LINER (see `mea_diff/mimicgen_c4_hook.py`, math sandbox-tested):
+in `DataGenerator.generate()`, right after
+`cur_object_pose = cur_datagen_info.object_poses[subtask_object_name]`, post-multiply the
+CURRENT peg pose by `Rz(k·90°)` **only** when `subtask_object_name=='square_peg'` (the
+insertion subtask). Post-mult = peg's LOCAL frame → the insertion segment re-orients k·90°
+about the peg axis, peg position fixed, grasp subtask untouched (no re-grasp). Valid because
+the square nut is C4 about the peg and robosuite success (`objects_on_pegs`) is orientation-agnostic.
+
+```
+# on the GPU box (mimicgen + robosuite + equidiff installed):
+python mimicgen/scripts/download_datasets.py --dataset_type source --tasks square      # 10 human seed demos
+python mimicgen/scripts/prepare_src_dataset.py --dataset square.hdf5 \
+       --env_interface MG_Square --env_interface_type robosuite -o square_src.hdf5      # adds DatagenInfo
+# apply the patch in mea_diff/mimicgen_c4_hook.py::PATCH to data_generator.py, then:
+python mimicgen/scripts/generate_dataset.py --config square_d0.json                     # _c4_key=0  -> BASELINE
+python mimicgen/scripts/generate_dataset.py --config square_d0.json --keys 0 1 2 3      # loop k    -> KEYED-C4
+#   (same experiment.seed for both; success-filter drops infeasible 180/270 carries)
+python robomimic/scripts/dataset_states_to_obs.py --input <gen>.hdf5 --output <gen>_obs.hdf5 \
+       --camera_names agentview robot0_eye_in_hand                                       # re-render valid RGB
+python equi_diffpo/scripts/robomimic_dataset_conversion.py -i <gen>_obs.hdf5 -o <gen>_abs.hdf5 -n 12  # 10-D abs
+```
+| variant hdf5 | key | notes |
+|---|---|---|
+| `square_d0_abs` (BASELINE) | `_c4_key=0`/None | the standard pipeline; must byte-match |
+| `square_d0_keyedC4_abs` (**the method**) | loop k∈{0,1,2,3} | 4 orientations per source demo |
+| `square_d0_globalrot_abs` (CONTROL) | whole-scene SO(2) per demo | redundant w/ EquiDiff by design — mainly for the DP host |
+
+Exact hooks/uncertainties (controller abs-mode, peg1==square peg, D0-vs-D1, k=180/270 IK yield):
+see the `wnvooyj2y` workflow result. Round control (optional, not headline): same pipeline with a
+genuinely SO(2)-symmetric grasp (annular peg, centered grasp, no handle); predict `square_gain > round_gain`.
 
 ## 3. Headline ablation (within-Square) — the paper's core number
 Hosts: EquiDiff = `train_equi_diffusion_unet_abs`; plain DP = `train_diffusion_unet`.
