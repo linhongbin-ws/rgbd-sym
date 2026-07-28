@@ -79,10 +79,15 @@ EquiDiff 已经强加**全局 SO(2) 等变**(整场景一起转 → 等价)。�
 
 ## 6. ⚠️ 两个硬障碍(核实后浮现,必须正视)
 
-**障碍 A —— 算力:diffusion 训练是 GPU-bound,CPU-only 训不动。** EquiDiff 默认 ~22GB GPU、batch 128;escnn 等变 U-Net 训练是唯一重步,**"CPU-only 无法在论文规模上训 EquiDiff"**。→ **我们选 diffusion 路线部分是为了 CPU 友好,但它只消掉了"在线 RL rollout 成本",diffusion 训练本身仍需 GPU。** demo 是静态可复用的,**只有训练那步需要 GPU**(可借/云)。显存可用 `dataloader.batch_size` / `policy.enc_n_hidden` 压。**这是当前第一号实际 blocker。**
+**障碍 A —— 算力:✅ 已解决(2026-07-28)。** 用户有 **RTX 3090(24GB,训练)+ RTX 3070(8GB,dev/验证)**(之前记忆里"CPU-only"指的是 Claude 的命令沙箱,不是用户硬件)。EquiDiff ~22GB@batch128 **能装进 3090**(24GB,必要时略降 batch);**3070 做缩规模 dev/单 seed 冒烟**(小 `policy.enc_n_hidden`、`dataloader.batch_size=32/64`、`n_demo=100`)。demo 静态可复用,只有训练那步用 GPU,用户在自己终端跑(同 pip 的模式)。→ **blocker 解除,可推进。**
 
 **障碍 B —— Round 控制组不存在现成数据。** MimicGen 只发 `square`(单方销,C4)和 `nut_assembly_d0`(双销,非受控)。**没有 round-only 预生成数据集**。robosuite 有 `NutAssemblyRound` env,但要**自己写 MimicGen datagen wrapper(镜像 Square 的 subtask 定义)+ ~10 条源 demo + 跑生成**(用 MuJoCo,渲染耗时)。→ 干净的方 vs 圆控制**需额外工程**;退路 `nut_assembly_d0`(双销)是不受控的弱代理。
 
-## 7. 立刻的第一步(取决于算力,见下方问题)
+## 7. 立刻的第一步(算力已解决 → 可执行)
 
-**Pipeline 跑通优先于铺满**:EquiDiff + MimicGen **Square** 先复现 EquiDiff 基线一条 seed(拿到成功率曲线),再接 MEA-v2-aug(状态/点云解析增强,复用 MimicGen subtask 相位)。通了再上 Round 控制(需自生成)+ Threading + 多 seed。**但这一切以"训练那步有 GPU"为前提**(障碍 A)。
+**Pipeline 跑通优先于铺满。里程碑:**
+1. **[3090/3070] 复现 EquiDiff 基线**:clone `pointW/equidiff` → 下 `square_d0` → `dataset_states_to_obs.py` + `robomimic_dataset_conversion.py` → `python train.py --config-name=train_equi_diffusion_unet_abs task_name=square_d0 n_demo=100`。先在 3070 用缩规模冒烟跑通,再上 3090 正式。拿到 EquiDiff 与宿主 DP(`train_diffusion_unet`)的成功率曲线。
+2. **接 MEA-v2-aug 一条臂**:在 dataset `__getitem__` 里加相位索引增强(low-dim/point-cloud 解析变换,复用 MimicGen subtask 相位;动作按 `_abs`/`_rel` 共轭),做成 config 开关。
+3. **上受控实验**:方(现成)vs 圆(需自生成 datagen,障碍 B)+ Threading + 多 seed + 归因 ablation。
+
+**分工**:训练/渲染在用户的 3090/3070(自己终端);Claude 沙箱只能写代码 + 解析增强的离线单元测试(无 GPU)。
