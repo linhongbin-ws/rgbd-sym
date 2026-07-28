@@ -31,8 +31,9 @@ def nut(ax, cx, cy, yaw, r=4.2, ec=DK, plate=BLUE, inserted=True):
     h = r * 0.42
     ax.add_patch(plt.Polygon(rot([[-h, -h], [h, -h], [h, h], [-h, h]], yaw, c), closed=True,
                              fc="white", ec=ec, lw=1.2, zorder=3))
-    if inserted:                                            # peg filling the hole = inserted
-        ax.add_patch(plt.Circle((cx, cy), r * 0.22, fc="#6b7280", ec=DK, lw=0.8, zorder=4))
+    if inserted:                                            # the FIXED peg (axis-aligned, not
+        pg = r * 0.26                                        # rotated) — the nut's hole is over it
+        ax.add_patch(plt.Rectangle((cx - pg, cy - pg), 2 * pg, 2 * pg, fc="#4b5563", ec=DK, lw=0.8, zorder=4))
     # short handle bar sticking out +x in the nut frame
     hb = r * 0.24; hl0, hl1 = r * 0.95, r + r * 0.55
     ax.add_patch(plt.Polygon(rot([[hl0, -hb], [hl1, -hb], [hl1, hb], [hl0, hb]], yaw, c),
@@ -48,13 +49,35 @@ def nut(ax, cx, cy, yaw, r=4.2, ec=DK, plate=BLUE, inserted=True):
 fig, ax = plt.subplots(figsize=(15, 6.6))
 ax.set_xlim(0, 100); ax.set_ylim(0, 100); ax.axis("off"); ax.set_aspect("equal")
 
-ax.text(50, 96, "The augmentation in one picture:  1 real demo  →  4 demos", fontsize=15, weight="bold", ha="center")
+ax.text(50, 97, "The augmentation in one picture:  1 real demo  →  4 demos", fontsize=15, weight="bold", ha="center")
+ax.text(50, 92.5, "top-down view — looking straight down at the table", fontsize=10, ha="center",
+        color=GRY, style="italic")
+
+# --- legend (2x2 grid: what each shape is) ---
+def leg_icon(x, y, kind):
+    if kind == "nut":
+        ax.add_patch(plt.Rectangle((x - 1.6, y - 1.6), 3.2, 3.2, fc=BLUE, ec=DK, lw=1))
+        ax.add_patch(plt.Rectangle((x - 0.6, y - 0.6), 1.2, 1.2, fc="white", ec=DK, lw=0.6))
+    elif kind == "peg":
+        ax.add_patch(plt.Rectangle((x - 0.9, y - 0.9), 1.8, 1.8, fc="#4b5563", ec=DK, lw=0.8))
+    elif kind == "handle":
+        ax.add_patch(plt.Rectangle((x - 1.6, y - 0.6), 3.2, 1.2, fc=BROWN, ec="#7c2d12", lw=0.8))
+    elif kind == "gripper":
+        ax.plot([x - 1.6, x + 1.6], [y - 0.9, y - 0.9], color=DK, lw=3, solid_capstyle="round")
+        ax.plot([x - 1.6, x + 1.6], [y + 0.9, y + 0.9], color=DK, lw=3, solid_capstyle="round")
+        ax.plot([x + 1.6, x + 1.6], [y - 0.9, y + 0.9], color=DK, lw=3)
+leg = [("nut  (movable, square hole)", "nut"), ("peg  (fixed; hole goes over it)", "peg"),
+       ("handle  (robot grasps here)", "handle"), ("gripper  (2 fingers)", "gripper")]
+for i, (txt, kind) in enumerate(leg):
+    x = 30 + (i % 2) * 34; y = 88 - (i // 2) * 5
+    leg_icon(x, y, kind)
+    ax.text(x + 3.0, y, txt, fontsize=8.4, va="center", ha="left", color=DK)
 
 # --- tiny "why" inset top-left: a square peg fits a square hole 4 ways ---
 ax.add_patch(FancyBboxPatch((2, 60), 20, 30, boxstyle="round,pad=0.4", fc="#f8fafc", ec=GRY, lw=1))
 ax.text(12, 86, "Why 4?", fontsize=10, weight="bold", ha="center")
 ax.add_patch(plt.Rectangle((7, 68), 10, 10, fc="white", ec=RED, lw=2))       # square hole
-ax.add_patch(plt.Rectangle((9, 70), 6, 6, fc=BLUE, ec=DK, lw=1.4))           # square peg
+ax.add_patch(plt.Rectangle((9, 70), 6, 6, fc="#4b5563", ec=DK, lw=1.4))      # square peg (matches legend)
 ax.add_patch(Arc((12, 73), 16, 16, theta1=20, theta2=290, color=DK, lw=1.6))
 ax.annotate("", xy=(19.5, 74.5), xytext=(19.5, 72), arrowprops=dict(arrowstyle="-|>", color=DK))
 ax.text(12, 63, "a square peg fits a\nsquare hole 4 ways", fontsize=8, ha="center", color=DK)
