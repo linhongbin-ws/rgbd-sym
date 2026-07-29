@@ -32,7 +32,10 @@ git clone https://github.com/linhongbin-ws/rgbd-sym.git -b meav2   # -> rgbd-sym
 
 - System deps for MuJoCo (Ubuntu):
     ```sh
+    # Ubuntu <=22.04:
     sudo apt install -y libosmesa6-dev libgl1-mesa-glx libglfw3 patchelf gfortran
+    # Ubuntu 24.04+ (libgl1-mesa-glx was split -> use libgl1 + libglx-mesa0):
+    sudo apt install -y libosmesa6-dev libgl1 libglx-mesa0 libglfw3 patchelf gfortran
     ```
 - Create the env from EquiDiff's spec (this pins torch/CUDA/diffusers/escnn/robomimic):
     ```sh
