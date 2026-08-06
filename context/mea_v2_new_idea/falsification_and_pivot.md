@@ -35,6 +35,19 @@
 | 3 | 270° | **10%**(基本不可行) |
 **结论**:抓着手柄把螺母翻 180/270° 插入 → 腕关节超限/够不到,大量失败。**"4-way C4" 在 Panda 上做不满,可达子集实质是 {0°,90°}**(≈+90° 增强,不是干净的子群——C4 的真子群只有 C1/{0,180},而 180 不可行)。不是 patch bug(k=0≈baseline)。→ **贡献从 "C4" 降级为 "可达子集 keyed 增强(+90°)"**,pitch 明显变弱;是否仍涨点交由 within-Square ablation 决定(**走 A:限定 k∈{0,1} 生成 → 跑 4 格 ablation**)。datagen hook = `mimicgen_c4_hook.py::PATCH`(已在真 repo 落地并跑通)。
 
+### 2026-08-04 实测:EquiDiff host 上 keyed 不涨反微降 → headline 证伪
+数据集 base/keyed 各 120 demo(k=0 vs k∈{0,1}),EquiDiff `train_equi_diffusion_unet_abs`,Square_D0 eval,n_demo=100,batch64,schedule=500 epoch(`50000/n_demo`),eval 每 10 epoch(满档 50 次),报告口径=**末 10 档 `test/mean_score` 平均**。
+
+| EquiDiff host, 1 seed | last10 | peak | final |
+|---|---|---|---|
+| base(aug-OFF) | **0.866** | 0.96 | 0.86 |
+| keyed-C4(+90°) | 0.844 | 0.90 | 0.80 |
+| **Δ = keyed − base** | **−0.022** | −0.06 | −0.06 |
+
+**三口径全是 base ≥ keyed**;逐档对照(rollout_every=10,两 run 同 epoch 可比)也是 base 全程 ≥ keyed。→ **keyed 注入的 90° 插入朝向被 C8 等变性本就覆盖 = 冗余增强,对已等变网络最坏轻微拖累(印证 T2/T3 + `2203.04439 §H.4`)。核心赌注「keyed 补架构表达不了的对称」证伪。** 单 seed/−2.2pt 在噪声内,但符号一致 → 加 seed 翻正概率极低。
+- ⚠️ 踩坑:首个 base run 在 epoch 65/500(13%)被中断 → 假 delta 0.84 vs 0.34,是**训练时长差**不是效果;重跑满 500 才得上表。**任何 arm 必须跑满 `max_epoch=499`(50 档 eval)再比。**
+- **仅剩的救故事路径 = DP 行**(非等变宿主):DP×keyed > DP×base → 「增强⟷等变架构替代」故事(弱,部分被 `2203.04439` scoop);DP×keyed ≈ DP×base → keyed 全局惰性,硬负结果。**下一步:跑 DP×{base,keyed}。**
+
 ---
 
 ## 2. 血淋淋的结论
