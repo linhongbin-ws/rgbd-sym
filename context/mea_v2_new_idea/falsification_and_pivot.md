@@ -48,6 +48,21 @@
 - ⚠️ 踩坑:首个 base run 在 epoch 65/500(13%)被中断 → 假 delta 0.84 vs 0.34,是**训练时长差**不是效果;重跑满 500 才得上表。**任何 arm 必须跑满 `max_epoch=499`(50 档 eval)再比。**
 - **仅剩的救故事路径 = DP 行**(非等变宿主):DP×keyed > DP×base → 「增强⟷等变架构替代」故事(弱,部分被 `2203.04439` scoop);DP×keyed ≈ DP×base → keyed 全局惰性,硬负结果。**下一步:跑 DP×{base,keyed}。**
 
+### 2026-08-06 实测:完整 2×2 → keyed-C4 两个宿主都无效(硬负结果,augmentation 路线证伪)
+DP host = `train_diffusion_unet`(非等变 `DiffusionUnetHybridImagePolicy`,`task: mimicgen_abs`,与 EquiDiff 同 obs/action/schedule/seed0)。四格同 n_demo=100 / batch64 / 满 500-epoch / 末10 规则:
+
+| host | variant | last10 | peak | final |
+|---|---|---|---|---|
+| DP(非等变) | base | 0.736 | 0.82 | 0.74 |
+| DP(非等变) | keyed | 0.748 | 0.82 | 0.78 |
+| EquiDiff(C8) | base | **0.866** | 0.96 | 0.86 |
+| EquiDiff(C8) | keyed | 0.844 | 0.90 | 0.80 |
+
+**Δ(keyed−base):DP +0.012,EquiDiff −0.022 —— 两个都在噪声内(n=50,SE≈0.02–0.03)→ keyed-C4 对两个宿主都实质无效。**
+- 健全性:equi base 0.866 vs DP base 0.736 = **+13pt**,复现文献 EquiDiff≫DP → setup 正确、null 为真非 bug。
+- **两个独立死因**:(1) 等变网络免费拿旋转 → 旋转增强对它**按构造冗余**,杀 headline 且换任何 eval 都成立(只要宿主是 EquiDiff);(2) eval 单模态(D0 固定插入朝向)→ 多加的 90° 朝向是"eval 从不考的技能",连非等变 DP 也几乎不吃。符号方向(增强微助非等变/微损等变)与理论一致但幅度=噪声,不成 contribution。
+- **结论:augmentation-beats-baseline 赌注在 Square 上证伪,死因(1)构造性、无法靠 eval/seed 翻盘。** 要"击败 baseline"须换机制——回 ICLR pivot 的 **context 进网络(B2)**(与旋转-冗余无关),或换一个"eval 真需多朝向 且 架构不自带该对称"的任务(但那就不能用 EquiDiff 当宿主)。**diffusion/keyed 这条线到此为止,作为 negative-analysis 材料保留。**
+
 ---
 
 ## 2. 血淋淋的结论
