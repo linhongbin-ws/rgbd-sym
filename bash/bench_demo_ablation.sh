@@ -65,7 +65,7 @@ run_point () {   # $1 = demo count
 }
 
 # ---- low end: where the augmentation hypothesis lives ----
-run_point 5
+# run_point 5
 run_point 10
 
 # ---- high end: 80 = the readme protocol demo count ----
